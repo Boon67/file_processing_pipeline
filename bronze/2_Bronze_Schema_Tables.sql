@@ -87,7 +87,8 @@ CREATE OR REPLACE TABLE RAW_DATA_TABLE (
     LOAD_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(), -- When loaded
     STAGE_NAME VARCHAR(500),                         -- Source stage path
     FILE_SIZE NUMBER(38,0),                          -- File size in bytes
-    FILE_LAST_MODIFIED TIMESTAMP_NTZ                 -- File last modified timestamp
+    FILE_LAST_MODIFIED TIMESTAMP_NTZ,                -- File last modified timestamp
+    TPA VARCHAR(500)                                 -- File path extracted from stage
 );
 
 -- ============================================
@@ -222,7 +223,8 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
             StructField("FILE_ROW_NUMBER", IntegerType()),
             StructField("STAGE_NAME", StringType()),
             StructField("FILE_SIZE", IntegerType()),
-            StructField("FILE_LAST_MODIFIED", StringType())
+            StructField("FILE_LAST_MODIFIED", StringType()),
+            StructField("TPA", StringType())
         ])
         
         # Convert each row to JSON and prepare for insert
@@ -249,7 +251,8 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
                 idx + 2,  # Row 2 is first data row (1 is header)
                 stage_path,
                 file_size,
-                file_last_modified
+                file_last_modified,
+                file_path
             )
             rows_to_insert.append(row_data)
         
@@ -265,7 +268,8 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
                 current_timestamp().alias("LOAD_TIMESTAMP"),
                 df_to_insert["STAGE_NAME"],
                 df_to_insert["FILE_SIZE"],
-                to_timestamp(df_to_insert["FILE_LAST_MODIFIED"], "YYYY-MM-DD HH24:MI:SS").alias("FILE_LAST_MODIFIED")
+                to_timestamp(df_to_insert["FILE_LAST_MODIFIED"], "YYYY-MM-DD HH24:MI:SS").alias("FILE_LAST_MODIFIED"),
+                df_to_insert["TPA"]
             )
             
             # Create temporary staging table
@@ -284,11 +288,11 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
             WHEN NOT MATCHED THEN
                 INSERT (
                     RAW_DATA, FILE_NAME, FILE_ROW_NUMBER, 
-                    LOAD_TIMESTAMP, STAGE_NAME, FILE_SIZE, FILE_LAST_MODIFIED
+                    LOAD_TIMESTAMP, STAGE_NAME, FILE_SIZE, FILE_LAST_MODIFIED, TPA
                 )
                 VALUES (
                     source.RAW_DATA, source.FILE_NAME, source.FILE_ROW_NUMBER, 
-                    source.LOAD_TIMESTAMP, source.STAGE_NAME, source.FILE_SIZE, source.FILE_LAST_MODIFIED
+                    source.LOAD_TIMESTAMP, source.STAGE_NAME, source.FILE_SIZE, source.FILE_LAST_MODIFIED, source.TPA
                 )
             """
             
@@ -412,7 +416,8 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
             StructField("FILE_ROW_NUMBER", IntegerType()),
             StructField("STAGE_NAME", StringType()),
             StructField("FILE_SIZE", IntegerType()),
-            StructField("FILE_LAST_MODIFIED", StringType())
+            StructField("FILE_LAST_MODIFIED", StringType()),
+            StructField("TPA", StringType())
         ])
         
         # Convert each row to JSON and prepare for insert
@@ -439,7 +444,8 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
                 idx + 2,  # Row 2 is first data row (1 is header)
                 stage_path,
                 file_size,
-                file_last_modified
+                file_last_modified,
+                file_path
             )
             rows_to_insert.append(row_data)
         
@@ -455,7 +461,8 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
                 current_timestamp().alias("LOAD_TIMESTAMP"),
                 df_to_insert["STAGE_NAME"],
                 df_to_insert["FILE_SIZE"],
-                to_timestamp(df_to_insert["FILE_LAST_MODIFIED"], "YYYY-MM-DD HH24:MI:SS").alias("FILE_LAST_MODIFIED")
+                to_timestamp(df_to_insert["FILE_LAST_MODIFIED"], "YYYY-MM-DD HH24:MI:SS").alias("FILE_LAST_MODIFIED"),
+                df_to_insert["TPA"]
             )
             
             # Create temporary staging table
@@ -474,11 +481,11 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
             WHEN NOT MATCHED THEN
                 INSERT (
                     RAW_DATA, FILE_NAME, FILE_ROW_NUMBER, 
-                    LOAD_TIMESTAMP, STAGE_NAME, FILE_SIZE, FILE_LAST_MODIFIED
+                    LOAD_TIMESTAMP, STAGE_NAME, FILE_SIZE, FILE_LAST_MODIFIED, TPA
                 )
                 VALUES (
                     source.RAW_DATA, source.FILE_NAME, source.FILE_ROW_NUMBER, 
-                    source.LOAD_TIMESTAMP, source.STAGE_NAME, source.FILE_SIZE, source.FILE_LAST_MODIFIED
+                    source.LOAD_TIMESTAMP, source.STAGE_NAME, source.FILE_SIZE, source.FILE_LAST_MODIFIED, source.TPA
                 )
             """
             
