@@ -1,0 +1,70 @@
+source_field,target_table,target_column,transformation_logic,mapping_method,confidence_score,approved,notes
+PAT_FNAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Aetna Dental - Patient first name
+PAT_LNAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Aetna Dental - Patient last name
+PAT_BIRTH_DT,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Aetna Dental - Patient DOB
+SUB_FNAME,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Aetna Dental - Subscriber first name
+SUB_LNAME,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Aetna Dental - Subscriber last name
+SUB_BIRTH_DT,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Aetna Dental - Subscriber DOB
+GRP_NM,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Group name
+POL_EFF_DT,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Aetna Dental - Policy effective date
+CLM_NBR,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Claim number
+SVC_DT,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Aetna Dental - Service date
+PROC_DT,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Aetna Dental - Processed date
+CDT_CD,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - CDT code
+DENTIST_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Dentist NPI
+PROD_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Product type
+CHRG_AMT,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Aetna Dental - Charge amount
+ALLOW_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Aetna Dental - Allowed amount
+DED_AMT,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Aetna Dental - Deductible amount
+COINS_AMT,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Aetna Dental - Coinsurance amount
+PAID_AMT,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Aetna Dental - Paid amount
+DENTIST_NM,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Dentist name
+DENTIST_ADDR,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Dentist address
+DENTIST_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Aetna Dental - Dentist TIN
+MEMBER_FIRST_NAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Anthem BlueCross - Member first name
+MEMBER_LAST_NAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Anthem BlueCross - Member last name
+MEMBER_DOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Anthem BlueCross - Member DOB
+SUBSCRIBER_FIRST,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Anthem BlueCross - Subscriber first name
+SUBSCRIBER_LAST,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Anthem BlueCross - Subscriber last name
+SUBSCRIBER_DOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Anthem BlueCross - Subscriber DOB
+GROUP_NAME,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Group name
+POLICY_EFF_DATE,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Anthem BlueCross - Policy effective date
+CLAIM_NUM,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Claim number
+SERVICE_FROM,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Anthem BlueCross - Service from date
+PAID_DATE,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Anthem BlueCross - Paid date
+DIAG_1,CLAIMS,DIAGNOSIS_CODE_1,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Diagnosis 1
+DIAG_2,CLAIMS,DIAGNOSIS_CODE_2,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Diagnosis 2
+PROC_CODE,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Procedure code
+PROVIDER_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Provider NPI
+PLAN_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Plan type
+BILLED_CHARGES,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Billed charges
+ALLOWED_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Allowed amount
+DEDUCTIBLE,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Deductible
+COPAY,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Copay
+COINSURANCE,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Coinsurance
+PLAN_PAID,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Anthem BlueCross - Plan paid
+PROVIDER_NAME,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Provider name
+PROVIDER_ADDRESS,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Provider address
+PROVIDER_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Anthem BlueCross - Provider TIN
+PatientFirstName,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,UnitedHealth - Patient first name
+PatientLastName,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,UnitedHealth - Patient last name
+PatientDOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,UnitedHealth - Patient DOB
+SubscriberFirst,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,UnitedHealth - Subscriber first name
+SubscriberLast,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,UnitedHealth - Subscriber last name
+SubscriberDOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,UnitedHealth - Subscriber DOB
+EmployerGroup,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Employer group
+EffectiveDate,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,UnitedHealth - Effective date
+ClaimID,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Claim ID
+DateFilled,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,UnitedHealth - Date filled
+ProcessedDate,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,UnitedHealth - Processed date
+DrugName,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Drug name (as procedure)
+PharmacyNPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Pharmacy NPI
+ProductType,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Product type
+BilledAmt,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,UnitedHealth - Billed amount
+CopayAmt,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,UnitedHealth - Copay amount
+DeductibleAmt,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,UnitedHealth - Deductible amount
+PlanPaidAmt,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,UnitedHealth - Plan paid amount
+PharmacyName,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Pharmacy name
+PharmacyAddress,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Pharmacy address
+PharmacyTIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,UnitedHealth - Pharmacy TIN
+

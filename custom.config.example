@@ -1,0 +1,47 @@
+# ============================================
+# Custom Configuration Example
+# ============================================
+# This is an example of a custom configuration file.
+# Copy this file and modify it for different environments:
+#
+#   cp custom.config.example production.config
+#   ./deploy.sh production.config
+#
+# Or for development:
+#   cp custom.config.example dev.config
+#   ./deploy.sh dev.config
+# ============================================
+
+# Deployment Settings
+# Set to "true" to accept all default values without prompting
+ACCEPT_DEFAULTS="false"
+
+# Set to "true" to use the default Snowflake CLI connection
+# Set to "false" to prompt for connection selection when multiple exist
+USE_DEFAULT_CLI_CONNECTION="true"
+
+# Database Configuration
+DATABASE_NAME="my_custom_database"
+SCHEMA_NAME="RAW"
+WAREHOUSE_NAME="MY_WAREHOUSE"
+
+# Stage Configuration
+SRC_STAGE_NAME="LANDING"
+COMPLETED_STAGE_NAME="ARCHIVE"
+ERROR_STAGE_NAME="FAILED"
+ARCHIVE_STAGE_NAME="LONG_TERM_ARCHIVE"
+
+# Task Configuration
+DISCOVER_TASK_NAME="task_discover_files"
+PROCESS_TASK_NAME="task_process_files"
+MOVE_SUCCESS_TASK_NAME="task_move_completed"
+MOVE_FAILED_TASK_NAME="task_move_errors"
+ARCHIVE_TASK_NAME="task_archive_old_files"
+
+# Task Schedule (in minutes)
+DISCOVER_TASK_SCHEDULE_MINUTES="30"  # Run every 30 minutes in production
+
+# Streamlit App Configuration
+# Note: Identifier names cannot contain spaces
+STREAMLIT_APP_NAME="PRODUCTION_BRONZE_PIPELINE"
+

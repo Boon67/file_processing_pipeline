@@ -1,0 +1,5 @@
+# Virtual environment for diagram generation
+venv/
+__pycache__/
+*.pyc
+

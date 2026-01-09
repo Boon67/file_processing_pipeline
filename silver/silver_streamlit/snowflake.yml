@@ -1,0 +1,14 @@
+definition_version: 2
+
+entities:
+  streamlit_app:
+    type: streamlit
+    identifier:
+      name: SILVER_TRANSFORMATION_MANAGER
+    title: Silver Transformation Manager
+    query_warehouse: COMPUTE_WH
+    main_file: streamlit_app.py
+    stage: PUBLIC.SILVER_STREAMLIT
+    artifacts:
+      - streamlit_app.py
+      - environment.yml

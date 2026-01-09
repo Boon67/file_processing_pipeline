@@ -1,0 +1,208 @@
+prompt_name,prompt_type,prompt_template,model_preference,temperature,max_tokens,enabled,description
+Field Mapping Assistant,FIELD_MAPPING,"You are a data mapping expert for healthcare claims data. Given the following source field name and sample values analyze and suggest the most appropriate target field mapping.
+
+Source Field: {source_field_name}
+Sample Values: {sample_values}
+Target Schema: {target_schema_description}
+
+Provide your response in JSON format:
+{
+  ""suggested_target_field"": ""field_name"",
+  ""confidence_score"": 0.0-1.0,
+  ""reasoning"": ""explanation"",
+  ""transformation_logic"": ""SQL transformation if needed"",
+  ""data_type"": ""suggested data type"",
+  ""potential_issues"": [""list of concerns""]
+}",llama3.1-70b,0.3,500,TRUE,Suggests field mappings using LLM semantic understanding
+Schema Discovery,SCHEMA_ANALYSIS,"Analyze the following healthcare claims data structure and suggest an optimal target schema.
+
+Sample Data Fields: {field_list}
+Sample Records: {sample_records}
+Domain: Healthcare Claims Processing
+
+Provide a comprehensive schema design in JSON format:
+{
+  ""tables"": [
+    {
+      ""table_name"": ""name"",
+      ""purpose"": ""description"",
+      ""columns"": [
+        {
+          ""column_name"": ""name"",
+          ""data_type"": ""type"",
+          ""nullable"": true/false,
+          ""primary_key"": true/false,
+          ""description"": ""purpose""
+        }
+      ]
+    }
+  ],
+  ""relationships"": [""list of table relationships""]
+}",llama3.1-70b,0.4,1000,TRUE,Discovers optimal schema structure from raw data
+Data Quality Rule Generator,RULE_GENERATION,"You are a data quality expert. Generate comprehensive data quality rules for the following field.
+
+Field Name: {field_name}
+Data Type: {data_type}
+Sample Values: {sample_values}
+Business Context: Healthcare claims processing
+Domain Rules: {domain_rules}
+
+Generate rules in JSON format:
+{
+  ""rules"": [
+    {
+      ""rule_name"": ""descriptive name"",
+      ""rule_type"": ""DATA_QUALITY|BUSINESS_LOGIC|STANDARDIZATION"",
+      ""rule_logic"": ""SQL expression"",
+      ""priority"": 1-100,
+      ""error_action"": ""REJECT|QUARANTINE|LOG"",
+      ""description"": ""rule purpose""
+    }
+  ]
+}",llama3.1-70b,0.3,800,TRUE,Generates data quality rules based on field analysis
+Transformation Logic,TRANSFORMATION,"Create SQL transformation logic to convert the source field to the target field format.
+
+Source Field: {source_field_name}
+Source Format: {source_format}
+Source Sample: {source_sample}
+Target Field: {target_field_name}
+Target Format: {target_format}
+Target Requirements: {target_requirements}
+
+Provide transformation in JSON format:
+{
+  ""transformation_sql"": ""SQL expression"",
+  ""complexity"": ""SIMPLE|MODERATE|COMPLEX"",
+  ""performance_notes"": ""optimization suggestions"",
+  ""edge_cases"": [""list of edge cases to handle""],
+  ""test_cases"": [
+    {""input"": ""value"" ""expected_output"": ""value""}
+  ]
+}",llama3.1-70b,0.2,600,TRUE,Generates SQL transformation logic for field conversions
+Anomaly Detection,ANOMALY_DETECTION,"Analyze the following data patterns and identify potential anomalies or data quality issues.
+
+Field: {field_name}
+Data Type: {data_type}
+Statistics: {field_statistics}
+Sample Values: {sample_values}
+Expected Patterns: {expected_patterns}
+
+Identify anomalies in JSON format:
+{
+  ""anomalies"": [
+    {
+      ""anomaly_type"": ""type"",
+      ""severity"": ""HIGH|MEDIUM|LOW"",
+      ""description"": ""what was found"",
+      ""affected_records"": ""count or percentage"",
+      ""suggested_action"": ""recommendation"",
+      ""detection_rule"": ""SQL to identify similar issues""
+    }
+  ]
+}",llama3.1-70b,0.3,700,TRUE,Identifies data anomalies and quality issues
+Business Rule Validation,VALIDATION,"Validate if the proposed business rule is appropriate for healthcare claims data.
+
+Proposed Rule: {rule_description}
+Target Field: {field_name}
+Rule Logic: {rule_logic}
+Business Context: {business_context}
+
+Evaluate the rule in JSON format:
+{
+  ""is_valid"": true/false,
+  ""validation_score"": 0.0-1.0,
+  ""strengths"": [""list of strengths""],
+  ""weaknesses"": [""list of weaknesses""],
+  ""improvements"": [""suggested improvements""],
+  ""compliance_notes"": ""HIPAA and regulatory considerations"",
+  ""recommended_action"": ""APPROVE|MODIFY|REJECT""
+}",llama3.1-70b,0.4,600,TRUE,Validates business rules for appropriateness and compliance
+Deduplication Strategy,DEDUPLICATION,"Recommend a deduplication strategy for the following entity.
+
+Entity: {entity_name}
+Key Fields: {key_fields}
+Sample Records: {sample_records}
+Business Requirements: {requirements}
+
+Provide strategy in JSON format:
+{
+  ""strategy_type"": ""EXACT_MATCH|FUZZY_MATCH|COMPOSITE_KEY"",
+  ""key_columns"": [""list of columns""],
+  ""matching_algorithm"": ""algorithm name"",
+  ""threshold"": 0.0-1.0,
+  ""conflict_resolution"": ""KEEP_FIRST|KEEP_LAST|MERGE|MANUAL_REVIEW"",
+  ""sql_implementation"": ""SQL code"",
+  ""expected_duplicate_rate"": ""percentage"",
+  ""performance_considerations"": ""notes""
+}",llama3.1-70b,0.3,700,TRUE,Recommends deduplication strategies for entities
+Data Profiling Summary,PROFILING,"Create a comprehensive data profiling summary for the following field.
+
+Field Name: {field_name}
+Data Type: {data_type}
+Record Count: {record_count}
+Sample Values: {sample_values}
+Statistics: {statistics}
+
+Provide profiling summary in JSON format:
+{
+  ""field_characteristics"": {
+    ""data_type_detected"": ""type"",
+    ""pattern"": ""regex or description"",
+    ""completeness"": ""percentage"",
+    ""uniqueness"": ""percentage"",
+    ""cardinality"": ""count""
+  },
+  ""data_quality_assessment"": {
+    ""quality_score"": 0-100,
+    ""issues_found"": [""list of issues""],
+    ""recommendations"": [""list of recommendations""]
+  },
+  ""business_insights"": ""observations about the data"",
+  ""suggested_constraints"": [""list of constraints""]
+}",llama3.1-70b,0.3,800,TRUE,Generates comprehensive data profiling analysis
+Semantic Field Matching,SEMANTIC_MATCHING,"Match the source field to the most semantically similar target field.
+
+Source Field: {source_field_name}
+Source Description: {source_description}
+Source Sample: {source_sample}
+Target Fields Available: {target_fields_list}
+
+Provide matching in JSON format:
+{
+  ""matches"": [
+    {
+      ""target_field"": ""field_name"",
+      ""semantic_similarity"": 0.0-1.0,
+      ""reasoning"": ""why this match"",
+      ""confidence"": ""HIGH|MEDIUM|LOW"",
+      ""requires_transformation"": true/false,
+      ""transformation_complexity"": ""SIMPLE|MODERATE|COMPLEX""
+    }
+  ],
+  ""recommended_match"": ""field_name"",
+  ""alternative_approaches"": [""other options""]
+}",llama3.1-70b,0.2,600,TRUE,Performs semantic matching between source and target fields
+Data Standardization,STANDARDIZATION,"Recommend standardization rules for the following field to ensure consistency.
+
+Field Name: {field_name}
+Current Values: {current_values}
+Data Type: {data_type}
+Business Domain: {domain}
+Standards Required: {standards}
+
+Provide standardization rules in JSON format:
+{
+  ""standardization_rules"": [
+    {
+      ""rule_name"": ""name"",
+      ""rule_type"": ""CASE|FORMAT|NORMALIZE|LOOKUP"",
+      ""transformation"": ""SQL expression"",
+      ""before_example"": ""value"",
+      ""after_example"": ""value"",
+      ""applies_to"": ""percentage of records""
+    }
+  ],
+  ""reference_data_needed"": [""list of reference tables""],
+  ""implementation_order"": [""ordered list of rules""]
+}",llama3.1-70b,0.3,700,TRUE,Recommends data standardization approaches
+

@@ -1,0 +1,9 @@
+name: silver_streamlit_env
+channels:
+  - snowflake
+dependencies:
+  - python=3.11.*
+  - streamlit=1.51.0
+  - snowflake-snowpark-python
+  - scikit-learn
+

@@ -1,0 +1,27 @@
+rule_id,rule_name,rule_type,target_table,target_column,rule_logic,rule_parameters,priority,error_action,description,active
+DQ001,Validate First Name Not Null,DATA_QUALITY,CLAIMS,FIRST_NAME,IS NOT NULL,,10,REJECT,Ensure patient first name is always populated,TRUE
+DQ002,Validate Last Name Not Null,DATA_QUALITY,CLAIMS,LAST_NAME,IS NOT NULL,,10,REJECT,Ensure patient last name is always populated,TRUE
+DQ003,Validate Date of Birth Format,DATA_QUALITY,CLAIMS,DOB,IS NOT NULL AND TRY_TO_DATE(DOB) IS NOT NULL,,20,QUARANTINE,Ensure DOB is a valid date,TRUE
+DQ004,Validate Claim Number Format,DATA_QUALITY,CLAIMS,CLAIM_NUM,RLIKE '^[A-Z0-9]{8,20}$',,30,QUARANTINE,Claim number must be 8-20 alphanumeric characters,TRUE
+DQ005,Validate Billed Charges Non-Negative,DATA_QUALITY,CLAIMS,BILLED_CHARGES,>= 0,,40,REJECT,Billed charges cannot be negative,TRUE
+DQ006,Validate Allowed Amount Non-Negative,DATA_QUALITY,CLAIMS,ALLOWED_AMT,>= 0,,40,REJECT,Allowed amount cannot be negative,TRUE
+DQ007,Validate Deductible Non-Negative,DATA_QUALITY,CLAIMS,DEDUCTIBLE,>= 0,,40,REJECT,Deductible cannot be negative,TRUE
+DQ008,Validate Copay Non-Negative,DATA_QUALITY,CLAIMS,COPAY,>= 0,,40,REJECT,Copay cannot be negative,TRUE
+DQ009,Validate Coinsurance Non-Negative,DATA_QUALITY,CLAIMS,COINSURANCE,>= 0,,40,REJECT,Coinsurance cannot be negative,TRUE
+DQ010,Validate Plan Paid Non-Negative,DATA_QUALITY,CLAIMS,PLAN_PAID,>= 0,,40,REJECT,Plan paid amount cannot be negative,TRUE
+DQ011,Validate Claim Type Values,DATA_QUALITY,CLAIMS,CLAIM_TYPE,"IN ('MEDICAL', 'PHARMACY', 'DENTAL', 'VISION', 'MENTAL_HEALTH')",,50,LOG,Claim type must be one of the valid values,TRUE
+DQ012,Validate Plan Type Values,DATA_QUALITY,CLAIMS,PLAN_TYPE,"IN ('HMO', 'PPO', 'EPO', 'POS', 'HDHP')",,50,LOG,Plan type must be one of the valid values,TRUE
+DQ013,Validate Provider NPI Format,DATA_QUALITY,CLAIMS,PROVIDER_NPI,RLIKE '^[0-9]{10}$',,60,QUARANTINE,Provider NPI must be exactly 10 digits,TRUE
+DQ014,Validate Provider TIN Format,DATA_QUALITY,CLAIMS,PROVIDER_TIN,RLIKE '^[0-9]{9}$',,60,QUARANTINE,Provider TIN must be exactly 9 digits (EIN format),TRUE
+STD001,Standardize First Name,STANDARDIZATION,CLAIMS,FIRST_NAME,UPPER,,100,LOG,Convert first name to uppercase,TRUE
+STD002,Standardize Last Name,STANDARDIZATION,CLAIMS,LAST_NAME,UPPER,,100,LOG,Convert last name to uppercase,TRUE
+STD003,Standardize Subscriber First Name,STANDARDIZATION,CLAIMS,SUBSCRIBER_FIRST,UPPER,,100,LOG,Convert subscriber first name to uppercase,TRUE
+STD004,Standardize Subscriber Last Name,STANDARDIZATION,CLAIMS,SUBSCRIBER_LAST,UPPER,,100,LOG,Convert subscriber last name to uppercase,TRUE
+STD005,Standardize Group Name,STANDARDIZATION,CLAIMS,GROUP_NAME,UPPER,,100,LOG,Convert group name to uppercase,TRUE
+STD006,Standardize Provider Name,STANDARDIZATION,CLAIMS,PROVIDER_NAME,UPPER,,100,LOG,Convert provider name to uppercase,TRUE
+STD007,Trim Provider Address,STANDARDIZATION,CLAIMS,PROVIDER_ADDRESS,TRIM,,110,LOG,Remove leading/trailing whitespace from provider address,TRUE
+STD008,Standardize Claim Type,STANDARDIZATION,CLAIMS,CLAIM_TYPE,UPPER,,110,LOG,Convert claim type to uppercase,TRUE
+STD009,Standardize Plan Type,STANDARDIZATION,CLAIMS,PLAN_TYPE,UPPER,,110,LOG,Convert plan type to uppercase,TRUE
+BL001,Calculate Patient Responsibility,BUSINESS_LOGIC,CLAIMS,PATIENT_RESPONSIBILITY,"COALESCE(DEDUCTIBLE, 0) + COALESCE(COPAY, 0) + COALESCE(COINSURANCE, 0)",,200,LOG,Calculate total patient responsibility,TRUE
+BL002,Calculate Total Paid,BUSINESS_LOGIC,CLAIMS,TOTAL_PAID,"COALESCE(PLAN_PAID, 0) + COALESCE(DEDUCTIBLE, 0) + COALESCE(COPAY, 0) + COALESCE(COINSURANCE, 0)",,200,LOG,Calculate total amount paid (plan + patient),TRUE
+DD001,Deduplicate by Claim Number,DEDUPLICATION,CLAIMS,,CLAIM_NUM,"{""strategy"": ""KEEP_FIRST""}",300,LOG,Remove duplicate claims keeping the first occurrence,TRUE
