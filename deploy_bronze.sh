@@ -74,15 +74,8 @@ if ! command -v snow &> /dev/null; then
     exit 1
 fi
 
-# Check snow CLI connection
-echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
-if ! snow connection test &> /dev/null; then
-    echo -e "${RED}ERROR: Snowflake CLI connection not configured${NC}"
-    echo "Please configure your connection with: snow connection add"
-    exit 1
-fi
-
 # Get list of available connections
+echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
 CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null)
 CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
 
@@ -208,6 +201,26 @@ rm -f "$TEMP_CHECK"
 # Re-enable exit on error
 set -e
 
+# Display role check results
+echo ""
+echo -e "${BLUE}Role Access Status:${NC}"
+
+# Check SYSADMIN
+if [ "$HAS_SYSADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ SYSADMIN role: Available${NC}"
+else
+    echo -e "${RED}  ✗ SYSADMIN role: NOT Available${NC}"
+fi
+
+# Check SECURITYADMIN
+if [ "$HAS_SECURITYADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ SECURITYADMIN role: Available${NC}"
+else
+    echo -e "${RED}  ✗ SECURITYADMIN role: NOT Available${NC}"
+fi
+
+echo ""
+
 # Check if user has both required roles
 MISSING_ROLES=()
 if [ "$HAS_SYSADMIN" = "0" ]; then
@@ -220,22 +233,19 @@ fi
 if [ ${#MISSING_ROLES[@]} -gt 0 ]; then
     echo -e "${RED}✗ ERROR: Missing required roles${NC}"
     echo ""
-    echo -e "${RED}Your user does not have access to the following required roles:${NC}"
-    for role in "${MISSING_ROLES[@]}"; do
-        echo -e "${RED}  - ${role}${NC}"
-    done
-    echo ""
     echo -e "${YELLOW}This deployment requires both SYSADMIN and SECURITYADMIN roles to:${NC}"
     echo "  - Create and manage database objects (SYSADMIN)"
     echo "  - Create and grant roles (SECURITYADMIN)"
     echo ""
-    echo -e "${YELLOW}Please have your Snowflake administrator grant these roles to your user.${NC}"
+    echo -e "${YELLOW}Please have your Snowflake administrator grant the missing role(s):${NC}"
+    for role in "${MISSING_ROLES[@]}"; do
+        echo -e "${YELLOW}  GRANT ROLE ${role} TO USER $(whoami);${NC}"
+    done
     echo ""
     exit 1
 fi
 
-echo -e "${GREEN}✓ SYSADMIN role available${NC}"
-echo -e "${GREEN}✓ SECURITYADMIN role available${NC}"
+echo -e "${GREEN}✓ All required roles available - proceeding with deployment${NC}"
 echo ""
 
 # Get configuration values - prompt only if not accepting defaults
