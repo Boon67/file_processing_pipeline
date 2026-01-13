@@ -65,6 +65,10 @@ EXECUTE IMMEDIATE $sql_cmd;
 SET sql_cmd = (SELECT 'GRANT ROLE ' || $role_admin || ' TO ROLE SYSADMIN');
 EXECUTE IMMEDIATE $sql_cmd;
 
+-- Grant CREATE STREAMLIT privilege to ADMIN role (for Streamlit app deployment)
+SET sql_cmd = (SELECT 'GRANT CREATE STREAMLIT ON SCHEMA ' || $database_name || '.PUBLIC TO ROLE ' || $role_admin);
+EXECUTE IMMEDIATE $sql_cmd;
+
 -- =================================================================
 -- SECTION 2: Create Database and Schema (Use SYSADMIN)
 -- =================================================================

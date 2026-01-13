@@ -10,9 +10,9 @@ Use this checklist to ensure successful deployment and configuration of the Snow
   snow connection test
   ```
 
-- [ ] **ACCOUNTADMIN privileges** or equivalent permissions
-  - Can create databases
-  - Can create roles
+- [ ] **SYSADMIN and SECURITYADMIN roles** (no ACCOUNTADMIN required)
+  - SYSADMIN: Create databases, schemas, tables, stages, tasks
+  - SECURITYADMIN: Create and manage custom roles
   - Can create warehouses
   - Can deploy Streamlit apps
 
@@ -236,9 +236,10 @@ Use this checklist to ensure successful deployment and configuration of the Snow
 ### Common Issues
 
 **Issue: Deployment fails with permission error**
-- [ ] Verify ACCOUNTADMIN role or equivalent
+- [ ] Verify you have SYSADMIN and SECURITYADMIN roles
 - [ ] Check warehouse permissions
 - [ ] Verify database creation rights
+- [ ] Run: `SHOW GRANTS TO USER <your_username>;` to verify roles
 
 **Issue: Streamlit app not found**
 - [ ] Check deployment logs

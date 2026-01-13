@@ -12,7 +12,6 @@
 # Prerequisites:
 #   - Snowflake CLI (snow) installed and configured
 #   - Connection must have SYSADMIN and SECURITYADMIN permissions
-#   - ACCOUNTADMIN recommended for Streamlit removal
 #
 # Supported Platforms:
 #   - macOS
@@ -265,21 +264,6 @@ else
     HAS_SECURITYADMIN=0
 fi
 
-# Test ACCOUNTADMIN access (optional, for Streamlit)
-cat > "$TEMP_CHECK" << 'EOF'
-USE ROLE ACCOUNTADMIN;
-SELECT 'ACCOUNTADMIN_OK' as result;
-EOF
-
-ACCOUNTADMIN_RESULT=$(run_snow_sql_check -f "$TEMP_CHECK" 2>&1)
-ACCOUNTADMIN_EXIT=$?
-
-if [ $ACCOUNTADMIN_EXIT -eq 0 ] && echo "$ACCOUNTADMIN_RESULT" | grep -q "ACCOUNTADMIN_OK"; then
-    HAS_ACCOUNTADMIN=1
-else
-    HAS_ACCOUNTADMIN=0
-fi
-
 rm -f "$TEMP_CHECK"
 
 # Re-enable exit on error
@@ -301,15 +285,6 @@ if [ "$HAS_SECURITYADMIN" = "1" ]; then
     echo -e "${GREEN}  ✓ SECURITYADMIN role: Available${NC}"
 else
     echo -e "${RED}  ✗ SECURITYADMIN role: NOT Available${NC}"
-fi
-
-# Check ACCOUNTADMIN
-if [ "$HAS_ACCOUNTADMIN" = "1" ]; then
-    echo -e "${GREEN}  ✓ ACCOUNTADMIN role: Available${NC}"
-    HAS_ACCOUNTADMIN=true
-else
-    echo -e "${YELLOW}  ⚠ ACCOUNTADMIN role: NOT Available (Streamlit removal may fail)${NC}"
-    HAS_ACCOUNTADMIN=false
 fi
 
 echo ""
@@ -349,24 +324,34 @@ echo "Using temporary directory: $TEMP_DIR"
 echo ""
 
 # ============================================
-# REMOVE STREAMLIT APP
+# REMOVE STREAMLIT APPS
 # ============================================
-echo -e "${BLUE}Step 3: Removing Streamlit application${NC}"
+echo -e "${BLUE}Step 3: Removing Streamlit applications${NC}"
 
-if [ "$HAS_ACCOUNTADMIN" = true ]; then
-    STREAMLIT_DROP_SQL="${TEMP_DIR}/drop_streamlit.sql"
-    cat > "$STREAMLIT_DROP_SQL" << EOF
-USE ROLE ACCOUNTADMIN;
-DROP STREAMLIT IF EXISTS ${DATABASE_NAME}.PUBLIC.${STREAMLIT_APP_NAME};
+# Use SYSADMIN with the custom ADMIN role to drop Streamlit apps
+STREAMLIT_DROP_SQL="${TEMP_DIR}/drop_streamlit.sql"
+ADMIN_ROLE="${DATABASE_NAME}_ADMIN"
+
+cat > "$STREAMLIT_DROP_SQL" << EOF
+-- Use SYSADMIN to switch to the custom ADMIN role
+USE ROLE SYSADMIN;
+
+-- Switch to the database ADMIN role (which owns the Streamlit apps)
+USE ROLE IDENTIFIER('${ADMIN_ROLE}');
+USE DATABASE ${DATABASE_NAME};
+USE SCHEMA PUBLIC;
+
+-- Drop Bronze Streamlit app (if exists)
+DROP STREAMLIT IF EXISTS ${STREAMLIT_APP_NAME};
+
+-- Drop Silver Streamlit app (if exists)
+DROP STREAMLIT IF EXISTS ${SILVER_STREAMLIT_APP_NAME:-SILVER_TRANSFORMATION_MANAGER};
 EOF
-    
-    if run_snow_sql "$STREAMLIT_DROP_SQL" 2>&1 | tee /tmp/streamlit_drop.log; then
-        echo -e "${GREEN}✓ Streamlit app removed${NC}"
-    else
-        echo -e "${YELLOW}⚠ Could not remove Streamlit app (may not exist)${NC}"
-    fi
+
+if run_snow_sql "$STREAMLIT_DROP_SQL" 2>&1 | tee /tmp/streamlit_drop.log; then
+    echo -e "${GREEN}✓ Streamlit apps removed${NC}"
 else
-    echo -e "${YELLOW}⚠ Skipping Streamlit removal (ACCOUNTADMIN required)${NC}"
+    echo -e "${YELLOW}⚠ Could not remove Streamlit apps (may not exist or role may not have access)${NC}"
 fi
 
 echo ""

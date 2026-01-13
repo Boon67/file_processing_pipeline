@@ -397,6 +397,18 @@ sed_inplace() {
     fi
 }
 
+# Convert path to Windows format if on Windows
+convert_path_for_snowflake() {
+    local path="$1"
+    if [ "$OS" = "Windows" ]; then
+        # Convert Git Bash path to Windows path
+        # /c/users/... -> C:/users/...
+        echo "$path" | sed 's|^/\([a-z]\)/|\U\1:/|'
+    else
+        echo "$path"
+    fi
+}
+
 # Function to replace variables in SQL files
 replace_variables() {
     local input_file=$1
@@ -577,7 +589,7 @@ else
     # First create the stages using SQL (required before snow streamlit deploy)
     STREAMLIT_STAGES_SQL="${TEMP_DIR}/create_streamlit_stages.sql"
     cat > "$STREAMLIT_STAGES_SQL" << EOF
-USE ROLE ACCOUNTADMIN;
+USE ROLE SYSADMIN;
 USE DATABASE ${DATABASE_NAME};
 USE SCHEMA PUBLIC;
 
@@ -593,18 +605,24 @@ CREATE STAGE IF NOT EXISTS CONFIG_STAGE
     ENCRYPTION = (TYPE='SNOWFLAKE_SSE')
     COMMENT = 'Stage for configuration files (default.config, custom.config)';
 
--- Grant permissions
+-- Grant permissions to custom roles
 SET role_admin = '${DATABASE_NAME}_ADMIN';
 SET role_readwrite = '${DATABASE_NAME}_READWRITE';
 SET role_readonly = '${DATABASE_NAME}_READONLY';
 
+-- Grant stage permissions
+GRANT READ, WRITE ON STAGE STREAMLIT_STAGE TO ROLE IDENTIFIER(\$role_admin);
 GRANT READ ON STAGE CONFIG_STAGE TO ROLE IDENTIFIER(\$role_admin);
 GRANT READ ON STAGE CONFIG_STAGE TO ROLE IDENTIFIER(\$role_readwrite);
 GRANT READ ON STAGE CONFIG_STAGE TO ROLE IDENTIFIER(\$role_readonly);
 
+-- Grant schema usage
 GRANT USAGE ON SCHEMA PUBLIC TO ROLE IDENTIFIER(\$role_admin);
 GRANT USAGE ON SCHEMA PUBLIC TO ROLE IDENTIFIER(\$role_readwrite);
 GRANT USAGE ON SCHEMA PUBLIC TO ROLE IDENTIFIER(\$role_readonly);
+
+-- Grant CREATE STREAMLIT privilege to ADMIN role
+GRANT CREATE STREAMLIT ON SCHEMA PUBLIC TO ROLE IDENTIFIER(\$role_admin);
 EOF
     
     if run_snow_sql -f "$STREAMLIT_STAGES_SQL" 2>/dev/null; then
@@ -649,11 +667,12 @@ EOF
     # Change to streamlit directory for deployment
     cd bronze/bronze_streamlit
     
-    # Deploy using snow streamlit deploy
+    # Deploy using snow streamlit deploy with ADMIN role
+    ADMIN_ROLE="${DATABASE_NAME}_ADMIN"
     if [ "$USE_DEFAULT_CONNECTION" = true ]; then
-        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC"
+        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --role \"${ADMIN_ROLE}\""
     else
-        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --connection \"$SNOW_CONNECTION\""
+        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --role \"${ADMIN_ROLE}\" --connection \"$SNOW_CONNECTION\""
     fi
     
     if eval "$DEPLOY_CMD" 2>&1 | tee /tmp/streamlit_deploy.log; then
@@ -669,7 +688,7 @@ EOF
     echo -e "${BLUE}Granting permissions to pipeline roles...${NC}"
     GRANT_SQL="${TEMP_DIR}/grant_streamlit_permissions.sql"
     cat > "$GRANT_SQL" << EOF
-USE ROLE ACCOUNTADMIN;
+USE ROLE SYSADMIN;
 USE DATABASE ${DATABASE_NAME};
 USE SCHEMA PUBLIC;
 
@@ -677,7 +696,7 @@ SET role_admin = '${DATABASE_NAME}_ADMIN';
 SET role_readwrite = '${DATABASE_NAME}_READWRITE';
 SET role_readonly = '${DATABASE_NAME}_READONLY';
 
-GRANT USAGE ON STREAMLIT "${STREAMLIT_APP_NAME}" TO ROLE IDENTIFIER(\$role_admin);
+-- Grant Streamlit usage to roles (ADMIN role owns it, grant to others)
 GRANT USAGE ON STREAMLIT "${STREAMLIT_APP_NAME}" TO ROLE IDENTIFIER(\$role_readwrite);
 GRANT USAGE ON STREAMLIT "${STREAMLIT_APP_NAME}" TO ROLE IDENTIFIER(\$role_readonly);
 EOF

@@ -4,9 +4,10 @@ Get the Snowflake File Processing Pipeline up and running in under 10 minutes.
 
 ## Prerequisites
 
-- Snowflake account with ACCOUNTADMIN privileges
+- Snowflake account with **SYSADMIN** and **SECURITYADMIN** roles (no ACCOUNTADMIN required)
 - Snowflake CLI installed (`snow`)
 - Python 3.8+ (for diagram generation, optional)
+- **Windows users**: Git Bash required (see [README](README.md#windows-specific-setup))
 
 ## 1. Configure Connection
 

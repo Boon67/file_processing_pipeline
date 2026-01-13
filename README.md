@@ -5,11 +5,11 @@ An automated file ingestion pipeline built entirely on **Snowflake Native Featur
 ## 🚀 Quick Links
 
 - **[Quick Start Guide](QUICK_START.md)** - Get started in 10 minutes
-- **[Windows Setup Guide](WINDOWS_SETUP.md)** - Windows-specific installation and troubleshooting
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment verification
 - **[User Guide](docs/USER_GUIDE.md)** - Detailed usage instructions
 - **[Architecture](docs/architecture/ARCHITECTURE.md)** - System design and components
 - **[Deployment Verification](silver/DEPLOYMENT_VERIFICATION.md)** - Post-deployment validation
+- **[Documentation Index](DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
 ## 🎯 Overview
 
@@ -201,9 +201,7 @@ The deployment scripts support multiple platforms:
 | **Windows** | Command Prompt | ❌ Not Supported |
 | **Windows** | PowerShell | ❌ Not Supported |
 
-> **Windows Users**: Install [Git for Windows](https://git-scm.com/download/win) which includes **Git Bash**. This provides a bash-compatible environment and is the recommended way to run the deployment scripts on Windows.
-> 
-> 📘 **See the [Windows Setup Guide](WINDOWS_SETUP.md)** for detailed Windows-specific instructions and troubleshooting.
+> **Windows Users**: Install [Git for Windows](https://git-scm.com/download/win) which includes **Git Bash**. This provides a bash-compatible environment and is the recommended way to run the deployment scripts on Windows. See the [Windows-Specific Setup](#windows-specific-setup) section below for detailed instructions.
 
 #### Install Snowflake CLI
 
@@ -225,6 +223,25 @@ snow connection test
 4. Run the pip install command above
 
 For more information: [Snowflake CLI Documentation](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index)
+
+#### Windows-Specific Setup
+
+If you're on Windows, follow these additional steps:
+
+1. **Install Git for Windows**: Download from [git-scm.com](https://git-scm.com/download/win)
+2. **Open Git Bash**: Right-click in your project folder → "Git Bash Here"
+3. **Make scripts executable**:
+   ```bash
+   chmod +x deploy.sh deploy_bronze.sh deploy_silver.sh undeploy.sh
+   ```
+4. **Run deployment**: All commands must be run in Git Bash, not Command Prompt or PowerShell
+
+**Common Windows Issues:**
+- **Character encoding errors**: Scripts automatically handle Unicode characters
+- **File path errors**: Scripts automatically convert Git Bash paths to Windows paths
+- **Line ending issues**: Configure git: `git config --global core.autocrlf input`
+
+See the [Platform-Specific Issues](#platform-specific-issues) section in Troubleshooting for detailed solutions.
 
 ### Deployment
 

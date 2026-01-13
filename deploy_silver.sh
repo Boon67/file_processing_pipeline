@@ -388,6 +388,18 @@ sed_inplace() {
     fi
 }
 
+# Convert path to Windows format if on Windows
+convert_path_for_snowflake() {
+    local path="$1"
+    if [ "$OS" = "Windows" ]; then
+        # Convert Git Bash path to Windows path
+        # /c/users/... -> C:/users/...
+        echo "$path" | sed 's|^/\([a-z]\)/|\U\1:/|'
+    else
+        echo "$path"
+    fi
+}
+
 # Function to replace variables in SQL files
 replace_variables() {
     local input_file=$1
@@ -535,24 +547,27 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${BLUE}Uploading Mapping CSV Files${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
+# Get current directory with proper path conversion for Windows
+CURRENT_DIR=$(convert_path_for_snowflake "$(pwd)")
+
 # Upload target schemas CSV
 if [ -f "silver/mappings/target_tables.csv" ]; then
     echo "Uploading target_tables.csv..."
-    run_snow_sql -q "PUT file://$(pwd)/silver/mappings/target_tables.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/target_tables.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ target_tables.csv uploaded${NC}"
 fi
 
 # Upload field mappings CSV
 if [ -f "silver/mappings/field_mappings.csv" ]; then
     echo "Uploading field_mappings.csv..."
-    run_snow_sql -q "PUT file://$(pwd)/silver/mappings/field_mappings.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/field_mappings.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ field_mappings.csv uploaded${NC}"
 fi
 
 # Upload transformation rules CSV
 if [ -f "silver/mappings/transformation_rules.csv" ]; then
     echo "Uploading transformation_rules.csv..."
-    run_snow_sql -q "PUT file://$(pwd)/silver/mappings/transformation_rules.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/transformation_rules.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ transformation_rules.csv uploaded${NC}"
 fi
 
@@ -622,7 +637,7 @@ else
     # First ensure CONFIG_STAGE exists
     CONFIG_STAGE_SQL="${TEMP_DIR}/create_config_stage.sql"
     cat > "$CONFIG_STAGE_SQL" << EOF
-USE ROLE ACCOUNTADMIN;
+USE ROLE SYSADMIN;
 USE DATABASE ${DATABASE_NAME};
 USE SCHEMA PUBLIC;
 
@@ -652,10 +667,13 @@ EOF
     if [ -f "$CONFIG_FILE" ]; then
         echo "Uploading ${CONFIG_FILE} to ${CONFIG_STAGE_PATH}..."
         UPLOAD_SQL="${TEMP_DIR}/upload_config.sql"
+        # Convert path for Windows compatibility
+        CONFIG_FILE_PATH=$(convert_path_for_snowflake "$(pwd)/${CONFIG_FILE}")
+        
         cat > "$UPLOAD_SQL" << EOF
 USE DATABASE ${DATABASE_NAME};
 USE SCHEMA PUBLIC;
-PUT file://$(pwd)/${CONFIG_FILE} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+PUT file://${CONFIG_FILE_PATH} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 EOF
         
         if run_snow_sql -f "$UPLOAD_SQL" 2>/dev/null; then
@@ -696,11 +714,12 @@ EOF
     # Change to streamlit directory for deployment
     cd "$STREAMLIT_DIR"
     
-    # Deploy using snow streamlit deploy
+    # Deploy using snow streamlit deploy with ADMIN role
+    ADMIN_ROLE="${DATABASE_NAME}_ADMIN"
     if [ "$USE_DEFAULT_CONNECTION" = true ]; then
-        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC"
+        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --role \"${ADMIN_ROLE}\""
     else
-        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --connection \"$SNOW_CONNECTION\""
+        DEPLOY_CMD="snow streamlit deploy --replace --database \"${DATABASE_NAME}\" --schema PUBLIC --role \"${ADMIN_ROLE}\" --connection \"$SNOW_CONNECTION\""
     fi
     
     if eval "$DEPLOY_CMD" 2>&1 | tee /tmp/silver_streamlit_deploy.log; then
@@ -716,7 +735,7 @@ EOF
     echo -e "${BLUE}Granting permissions to pipeline roles...${NC}"
     GRANT_SQL="${TEMP_DIR}/grant_streamlit_permissions.sql"
     cat > "$GRANT_SQL" << EOF
-USE ROLE ACCOUNTADMIN;
+USE ROLE SYSADMIN;
 USE DATABASE ${DATABASE_NAME};
 USE SCHEMA PUBLIC;
 
