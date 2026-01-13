@@ -183,9 +183,28 @@ silver_quality_check_task (Validates output)
 - `SYSADMIN` and `SECURITYADMIN` roles
 - Access to a warehouse (default: `COMPUTE_WH`)
 - **Snowflake CLI** installed and configured
+- **Python** (python or python3)
+- **Bash-compatible shell** (see Platform Support below)
+
+#### Platform Support
+
+The deployment scripts support multiple platforms:
+
+| Platform | Shell Environment | Status |
+|----------|------------------|--------|
+| **macOS** | Terminal (bash/zsh) | ✅ Fully Supported |
+| **Linux** | bash | ✅ Fully Supported |
+| **Windows** | Git Bash | ✅ **Recommended** |
+| **Windows** | WSL (Windows Subsystem for Linux) | ✅ Supported |
+| **Windows** | Cygwin | ✅ Supported |
+| **Windows** | Command Prompt | ❌ Not Supported |
+| **Windows** | PowerShell | ❌ Not Supported |
+
+> **Windows Users**: Install [Git for Windows](https://git-scm.com/download/win) which includes **Git Bash**. This provides a bash-compatible environment and is the recommended way to run the deployment scripts on Windows.
 
 #### Install Snowflake CLI
 
+**macOS / Linux / Git Bash (Windows):**
 ```bash
 pip install snowflake-cli-labs
 
@@ -195,6 +214,12 @@ snow connection add
 # Test connection
 snow connection test
 ```
+
+**Windows-Specific Setup:**
+1. Install [Git for Windows](https://git-scm.com/download/win) (includes Git Bash)
+2. Install [Python](https://www.python.org/downloads/) (if not already installed)
+3. Open **Git Bash** (not Command Prompt or PowerShell)
+4. Run the pip install command above
 
 For more information: [Snowflake CLI Documentation](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index)
 
@@ -235,6 +260,8 @@ For more information: [Snowflake CLI Documentation](https://docs.snowflake.com/e
 ```
 
 **Note**: The master `deploy.sh` script orchestrates both layer deployments with beautiful progress indicators and comprehensive error handling. Use layer-specific scripts (`deploy_bronze.sh`, `deploy_silver.sh`) for targeted deployments or redeployments.
+
+**Windows Users**: Run all deployment commands in **Git Bash**, not Command Prompt or PowerShell. The scripts automatically detect your platform and adjust accordingly.
 
 ### Deployment Scripts Overview
 
@@ -688,6 +715,61 @@ This script will check:
 - ✓ Simulate discovery logic
 
 ### Common Issues
+
+#### Platform-Specific Issues
+
+##### Windows: Script Won't Run
+
+**Symptom:** Deployment script fails with syntax errors or "command not found"
+
+**Cause:** Using Command Prompt or PowerShell instead of Git Bash
+
+**Solution:**
+1. Install [Git for Windows](https://git-scm.com/download/win) if not already installed
+2. Open **Git Bash** (not Command Prompt or PowerShell)
+3. Navigate to the project directory: `cd /c/path/to/file_processing_pipeline`
+4. Run the deployment script: `./deploy.sh`
+
+##### Windows: Line Ending Issues
+
+**Symptom:** Scripts fail with `^M: bad interpreter` or similar errors
+
+**Cause:** Files have Windows line endings (CRLF) instead of Unix line endings (LF)
+
+**Solution:**
+```bash
+# In Git Bash, convert line endings
+dos2unix deploy.sh deploy_bronze.sh deploy_silver.sh
+
+# Or configure git to handle line endings automatically
+git config --global core.autocrlf input
+```
+
+##### Windows/Linux: Python Not Found
+
+**Symptom:** "Python is not installed or not in PATH"
+
+**Solution:**
+- **Windows**: Install [Python](https://www.python.org/downloads/) and ensure "Add Python to PATH" is checked
+- **Linux**: `sudo apt-get install python3` (Ubuntu/Debian) or `sudo yum install python3` (RHEL/CentOS)
+- **macOS**: Python 3 is pre-installed, or install via Homebrew: `brew install python3`
+
+After installation, verify:
+```bash
+python --version
+# or
+python3 --version
+```
+
+##### Permission Denied
+
+**Symptom:** "Permission denied" when running scripts
+
+**Solution:**
+```bash
+# Make scripts executable
+chmod +x deploy.sh deploy_bronze.sh deploy_silver.sh undeploy.sh
+```
 
 #### Issue 1: Files Not Being Discovered
 

@@ -13,13 +13,43 @@
 #   5. Deploys Streamlit management application
 #   6. Grants permissions to roles
 #
+# Prerequisites:
+#   - Snowflake CLI (snow) installed and configured
+#   - Connection must have SYSADMIN and SECURITYADMIN permissions
+#   - Python installed (python or python3)
+#
 # Usage:
 #   ./deploy_silver.sh                  # Uses default.config
 #   ./deploy_silver.sh custom.config    # Uses custom configuration
 #   ./deploy.sh                         # Deploy complete solution (Bronze + Silver)
+#
+# Supported Platforms:
+#   - macOS
+#   - Linux
+#   - Windows (Git Bash, WSL, or Cygwin)
 # ============================================
 
 set -e  # Exit on error
+
+# Detect OS for platform-specific commands
+OS_TYPE="$(uname -s 2>/dev/null || echo 'Unknown')"
+case "${OS_TYPE}" in
+    Linux*)     OS="Linux";;
+    Darwin*)    OS="macOS";;
+    CYGWIN*|MINGW*|MSYS*|MINGW32*|MINGW64*)  OS="Windows";;
+    *)          OS="Unknown";;
+esac
+
+# Detect Python command (prefer python, fall back to python3)
+if command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+elif command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+else
+    echo "ERROR: Python is not installed or not in PATH"
+    echo "Please install Python from: https://www.python.org/downloads/"
+    exit 1
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -79,7 +109,7 @@ fi
 # Get list of available connections
 echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
 CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null)
-CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
+CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
 
 if [ "$CONNECTION_COUNT" = "0" ]; then
     echo -e "${RED}ERROR: No Snowflake connections configured${NC}"
@@ -87,12 +117,12 @@ if [ "$CONNECTION_COUNT" = "0" ]; then
     exit 1
 elif [ "$CONNECTION_COUNT" = "1" ]; then
     # Only one connection, use it
-    SNOW_CONNECTION=$(echo "$CONNECTIONS_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); print(data[0].get('connection_name', data[0].get('name', '')))" 2>/dev/null)
+    SNOW_CONNECTION=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(data[0].get('connection_name', data[0].get('name', '')))" 2>/dev/null)
     USE_DEFAULT_CONNECTION=false
 else
     # Multiple connections exist
     # Get default connection
-    DEFAULT_CONN=$(echo "$CONNECTIONS_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); print(next((c.get('connection_name', c.get('name', '')) for c in data if c.get('is_default', False)), ''))" 2>/dev/null)
+    DEFAULT_CONN=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(next((c.get('connection_name', c.get('name', '')) for c in data if c.get('is_default', False)), ''))" 2>/dev/null)
     
     # Check if we should use default automatically
     if [ "$USE_DEFAULT_CLI_CONNECTION" = "true" ] && [ -n "$DEFAULT_CONN" ]; then
@@ -109,7 +139,7 @@ else
         CONN_NAMES=()
         INDEX=1
         while IFS= read -r line; do
-            CONN_NAME=$(echo "$line" | python3 -c "import sys, json; c = json.loads(sys.stdin.read()); print(c.get('connection_name', c.get('name', '')))" 2>/dev/null)
+            CONN_NAME=$(echo "$line" | $PYTHON_CMD -c "import sys, json; c = json.loads(sys.stdin.read()); print(c.get('connection_name', c.get('name', '')))" 2>/dev/null)
             CONN_NAMES+=("$CONN_NAME")
             
             if [ "$CONN_NAME" = "$DEFAULT_CONN" ]; then
@@ -118,7 +148,7 @@ else
                 echo "  ${INDEX}. ${CONN_NAME}"
             fi
             INDEX=$((INDEX + 1))
-        done < <(echo "$CONNECTIONS_JSON" | python3 -c "import sys, json; [print(json.dumps(c)) for c in json.load(sys.stdin)]" 2>/dev/null)
+        done < <(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; [print(json.dumps(c)) for c in json.load(sys.stdin)]" 2>/dev/null)
         
         echo ""
         if [ -n "$DEFAULT_CONN" ]; then
@@ -342,6 +372,15 @@ TEMP_DIR=$(mktemp -d)
 echo ""
 echo -e "${BLUE}Creating temporary working directory: ${TEMP_DIR}${NC}"
 
+# Cross-platform sed in-place function
+sed_inplace() {
+    if [ "$OS" = "macOS" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Function to replace variables in SQL files
 replace_variables() {
     local input_file=$1
@@ -352,32 +391,32 @@ replace_variables() {
     cp "$input_file" "$output_file"
     
     # Replace complex IDENTIFIER() patterns with concatenation first (most specific)
-    sed -i '' "s/IDENTIFIER(\\\$DATABASE_NAME || '\\.' || \\\$BRONZE_SCHEMA_NAME)/IDENTIFIER('${DATABASE_NAME}.${SCHEMA_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.' || :source_table)/IDENTIFIER('${SCHEMA_NAME}' || '.' || :source_table)/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.RAW_DATA_TABLE')/IDENTIFIER('${SCHEMA_NAME}.RAW_DATA_TABLE')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$DATABASE_NAME || '\\.' || \\\$BRONZE_SCHEMA_NAME)/IDENTIFIER('${DATABASE_NAME}.${SCHEMA_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.' || :source_table)/IDENTIFIER('${SCHEMA_NAME}' || '.' || :source_table)/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.RAW_DATA_TABLE')/IDENTIFIER('${SCHEMA_NAME}.RAW_DATA_TABLE')/g" "$output_file"
     
     # Replace simple IDENTIFIER() patterns (more specific than bare variables)
-    sed -i '' "s/IDENTIFIER(\\\$DATABASE_NAME)/IDENTIFIER('${DATABASE_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$SILVER_SCHEMA_NAME)/IDENTIFIER('${SILVER_SCHEMA_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME)/IDENTIFIER('${SCHEMA_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$WAREHOUSE_NAME)/IDENTIFIER('${WAREHOUSE_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$SILVER_STAGE_NAME)/IDENTIFIER('${SILVER_STAGE_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$SILVER_CONFIG_STAGE_NAME)/IDENTIFIER('${SILVER_CONFIG_STAGE_NAME}')/g" "$output_file"
-    sed -i '' "s/IDENTIFIER(\\\$SILVER_STREAMLIT_STAGE_NAME)/IDENTIFIER('${SILVER_STREAMLIT_STAGE_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$DATABASE_NAME)/IDENTIFIER('${DATABASE_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$SILVER_SCHEMA_NAME)/IDENTIFIER('${SILVER_SCHEMA_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME)/IDENTIFIER('${SCHEMA_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$WAREHOUSE_NAME)/IDENTIFIER('${WAREHOUSE_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$SILVER_STAGE_NAME)/IDENTIFIER('${SILVER_STAGE_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$SILVER_CONFIG_STAGE_NAME)/IDENTIFIER('${SILVER_CONFIG_STAGE_NAME}')/g" "$output_file"
+    sed_inplace "s/IDENTIFIER(\\\$SILVER_STREAMLIT_STAGE_NAME)/IDENTIFIER('${SILVER_STREAMLIT_STAGE_NAME}')/g" "$output_file"
     
     # Replace quoted variable patterns (for string literals)
-    sed -i '' "s/'\\\$DATABASE_NAME'/'${DATABASE_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$SILVER_SCHEMA_NAME'/'${SILVER_SCHEMA_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$BRONZE_SCHEMA_NAME'/'${SCHEMA_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$WAREHOUSE_NAME'/'${WAREHOUSE_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$SILVER_STAGE_NAME'/'${SILVER_STAGE_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$SILVER_CONFIG_STAGE_NAME'/'${SILVER_CONFIG_STAGE_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$SILVER_STREAMLIT_STAGE_NAME'/'${SILVER_STREAMLIT_STAGE_NAME}'/g" "$output_file"
-    sed -i '' "s/'\\\$SILVER_TRANSFORM_SCHEDULE_MINUTES'/'${SILVER_TRANSFORM_SCHEDULE_MINUTES}'/g" "$output_file"
-    sed -i '' "s/'\\\$DEFAULT_LLM_MODEL'/'${DEFAULT_LLM_MODEL}'/g" "$output_file"
-    sed -i '' "s/'\\\$DEFAULT_BATCH_SIZE'/'${DEFAULT_BATCH_SIZE}'/g" "$output_file"
-    sed -i '' "s/'\\\$APPLY_RULES_BY_DEFAULT'/'${APPLY_RULES_BY_DEFAULT}'/g" "$output_file"
-    sed -i '' "s/'\\\$INCREMENTAL_PROCESSING'/'${INCREMENTAL_PROCESSING}'/g" "$output_file"
+    sed_inplace "s/'\\\$DATABASE_NAME'/'${DATABASE_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$SILVER_SCHEMA_NAME'/'${SILVER_SCHEMA_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$BRONZE_SCHEMA_NAME'/'${SCHEMA_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$WAREHOUSE_NAME'/'${WAREHOUSE_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$SILVER_STAGE_NAME'/'${SILVER_STAGE_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$SILVER_CONFIG_STAGE_NAME'/'${SILVER_CONFIG_STAGE_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$SILVER_STREAMLIT_STAGE_NAME'/'${SILVER_STREAMLIT_STAGE_NAME}'/g" "$output_file"
+    sed_inplace "s/'\\\$SILVER_TRANSFORM_SCHEDULE_MINUTES'/'${SILVER_TRANSFORM_SCHEDULE_MINUTES}'/g" "$output_file"
+    sed_inplace "s/'\\\$DEFAULT_LLM_MODEL'/'${DEFAULT_LLM_MODEL}'/g" "$output_file"
+    sed_inplace "s/'\\\$DEFAULT_BATCH_SIZE'/'${DEFAULT_BATCH_SIZE}'/g" "$output_file"
+    sed_inplace "s/'\\\$APPLY_RULES_BY_DEFAULT'/'${APPLY_RULES_BY_DEFAULT}'/g" "$output_file"
+    sed_inplace "s/'\\\$INCREMENTAL_PROCESSING'/'${INCREMENTAL_PROCESSING}'/g" "$output_file"
 }
 
 # Function to execute SQL file
