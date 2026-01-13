@@ -5,6 +5,7 @@ An automated file ingestion pipeline built entirely on **Snowflake Native Featur
 ## 🚀 Quick Links
 
 - **[Quick Start Guide](QUICK_START.md)** - Get started in 10 minutes
+- **[Windows Setup Guide](WINDOWS_SETUP.md)** - Windows-specific installation and troubleshooting
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment verification
 - **[User Guide](docs/USER_GUIDE.md)** - Detailed usage instructions
 - **[Architecture](docs/architecture/ARCHITECTURE.md)** - System design and components
@@ -201,6 +202,8 @@ The deployment scripts support multiple platforms:
 | **Windows** | PowerShell | ❌ Not Supported |
 
 > **Windows Users**: Install [Git for Windows](https://git-scm.com/download/win) which includes **Git Bash**. This provides a bash-compatible environment and is the recommended way to run the deployment scripts on Windows.
+> 
+> 📘 **See the [Windows Setup Guide](WINDOWS_SETUP.md)** for detailed Windows-specific instructions and troubleshooting.
 
 #### Install Snowflake CLI
 
@@ -729,6 +732,21 @@ This script will check:
 2. Open **Git Bash** (not Command Prompt or PowerShell)
 3. Navigate to the project directory: `cd /c/path/to/file_processing_pipeline`
 4. Run the deployment script: `./deploy.sh`
+
+##### Windows: Character Encoding Error
+
+**Symptom:** `'charmap' codec can't decode byte 0x90` or similar encoding errors during deployment
+
+**Cause:** SQL files contain Unicode box-drawing characters that Windows Python can't decode with the default charmap encoding
+
+**Solution:**
+The deployment scripts now **automatically** handle this on Windows by creating temporary ASCII-safe versions of the SQL files. Simply run the deployment normally:
+
+```bash
+./deploy.sh
+```
+
+The scripts detect Windows and automatically convert Unicode characters to ASCII equivalents before execution.
 
 ##### Windows: Line Ending Issues
 

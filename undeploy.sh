@@ -8,9 +8,37 @@
 #   - Database and all schemas/tables/stages
 #   - Custom roles
 # WARNING: This will permanently delete all data!
+#
+# Prerequisites:
+#   - Snowflake CLI (snow) installed and configured
+#   - Connection must have SYSADMIN and SECURITYADMIN permissions
+#   - ACCOUNTADMIN recommended for Streamlit removal
+#
+# Supported Platforms:
+#   - macOS
+#   - Linux
+#   - Windows (Git Bash, WSL, or Cygwin)
 # ============================================
 
 set -e  # Exit on error
+
+# Detect OS for platform-specific commands
+OS_TYPE="$(uname -s 2>/dev/null || echo 'Unknown')"
+case "${OS_TYPE}" in
+    Linux*)     OS="Linux";;
+    Darwin*)    OS="macOS";;
+    CYGWIN*|MINGW*|MSYS*|MINGW32*|MINGW64*)  OS="Windows";;
+    *)          OS="Unknown";;
+esac
+
+# Detect Python command (prefer python, fall back to python3)
+if command -v python &> /dev/null; then
+    PYTHON_CMD="python"
+elif command -v python3 &> /dev/null; then
+    PYTHON_CMD="python3"
+else
+    PYTHON_CMD="python"  # Will fail later if not found
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -95,118 +123,222 @@ echo ""
 # ============================================
 echo -e "${BLUE}Step 1: Setting up Snowflake connection${NC}"
 
-# Check if USE_DEFAULT_CLI_CONNECTION is set
-if [ "${USE_DEFAULT_CLI_CONNECTION}" = true ]; then
-    USE_DEFAULT_CONNECTION=true
-    echo "Using default Snowflake CLI connection"
-else
-    USE_DEFAULT_CONNECTION=false
+# Check if snow CLI is installed
+if ! command -v snow &> /dev/null; then
+    echo -e "${RED}ERROR: Snowflake CLI (snow) is not installed or not in PATH${NC}"
+    echo "Please install Snowflake CLI from: https://docs.snowflake.com/en/developer-guide/snowflake-cli/index"
+    echo ""
+    echo "Installation: pip install snowflake-cli-labs"
+    exit 1
 fi
 
-# Function to run snow SQL commands
-run_snow_sql() {
-    local sql_file=$1
-    if [ "$USE_DEFAULT_CONNECTION" = true ]; then
-        snow sql -f "$sql_file"
-    else
-        snow sql -f "$sql_file" --connection "$SNOW_CONNECTION"
-    fi
-}
+# Get list of available connections
+echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
+CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null)
+CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
 
-# If not using default, select connection
-if [ "$USE_DEFAULT_CONNECTION" = false ]; then
-    # List available connections
-    echo "Available Snowflake CLI connections:"
-    CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null || echo "[]")
+if [ "$CONNECTION_COUNT" = "0" ]; then
+    echo -e "${RED}ERROR: No Snowflake connections configured${NC}"
+    echo "Please configure a connection with: snow connection add"
+    exit 1
+elif [ "$CONNECTION_COUNT" = "1" ]; then
+    # Only one connection, use it
+    SNOW_CONNECTION=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(data[0].get('connection_name', data[0].get('name', '')))" 2>/dev/null)
+    USE_DEFAULT_CONNECTION=false
+else
+    # Multiple connections exist
+    # Get default connection
+    DEFAULT_CONN=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(next((c.get('connection_name', c.get('name', '')) for c in data if c.get('is_default', False)), ''))" 2>/dev/null)
     
-    if [ "$CONNECTIONS_JSON" = "[]" ]; then
-        echo -e "${RED}No Snowflake CLI connections found. Please run 'snow connection add' first.${NC}"
-        exit 1
-    fi
-    
-    # Parse connection names
-    CONNECTIONS=$(echo "$CONNECTIONS_JSON" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    for conn in data:
-        # Handle both 'connection_name' and 'name' keys
-        name = conn.get('connection_name') or conn.get('name')
-        if name:
-            print(name)
-except:
-    pass
-" 2>/dev/null)
-    
-    if [ -z "$CONNECTIONS" ]; then
-        echo -e "${RED}Could not parse connections. Please check your Snowflake CLI setup.${NC}"
-        exit 1
-    fi
-    
-    # Count connections
-    CONNECTION_COUNT=$(echo "$CONNECTIONS" | wc -l | tr -d ' ')
-    
-    if [ "$CONNECTION_COUNT" -eq 1 ]; then
-        SNOW_CONNECTION="$CONNECTIONS"
-        echo "Using connection: $SNOW_CONNECTION"
+    # Check if we should use default automatically
+    if [ "${USE_DEFAULT_CLI_CONNECTION:-false}" = "true" ] && [ -n "$DEFAULT_CONN" ]; then
+        # Use the default connection without prompting
+        SNOW_CONNECTION="$DEFAULT_CONN"
+        USE_DEFAULT_CONNECTION=false
+        echo -e "${GREEN}Using default connection: ${SNOW_CONNECTION}${NC}"
     else
-        echo "$CONNECTIONS" | nl
+        # Multiple connections, let user choose
+        echo -e "${YELLOW}Multiple Snowflake connections found:${NC}"
         echo ""
-        read -p "Select connection number: " CONN_NUM
-        SNOW_CONNECTION=$(echo "$CONNECTIONS" | sed -n "${CONN_NUM}p")
+        
+        # Display connections
+        CONN_NAMES=()
+        INDEX=1
+        while IFS= read -r line; do
+            CONN_NAME=$(echo "$line" | $PYTHON_CMD -c "import sys, json; c = json.loads(sys.stdin.read()); print(c.get('connection_name', c.get('name', '')))" 2>/dev/null)
+            CONN_NAMES+=("$CONN_NAME")
+            
+            if [ "$CONN_NAME" = "$DEFAULT_CONN" ]; then
+                echo -e "  ${INDEX}. ${GREEN}${CONN_NAME} (default)${NC}"
+            else
+                echo "  ${INDEX}. ${CONN_NAME}"
+            fi
+            INDEX=$((INDEX + 1))
+        done < <(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; [print(json.dumps(c)) for c in json.load(sys.stdin)]" 2>/dev/null)
+        
+        echo ""
+        if [ -n "$DEFAULT_CONN" ]; then
+            read -p "Select connection [1-${CONNECTION_COUNT}] (Enter for default): " CONN_CHOICE
+            if [ -z "$CONN_CHOICE" ]; then
+                SNOW_CONNECTION="$DEFAULT_CONN"
+            else
+                SNOW_CONNECTION="${CONN_NAMES[$((CONN_CHOICE-1))]}"
+            fi
+        else
+            read -p "Select connection [1-${CONNECTION_COUNT}]: " CONN_CHOICE
+            SNOW_CONNECTION="${CONN_NAMES[$((CONN_CHOICE-1))]}"
+        fi
         
         if [ -z "$SNOW_CONNECTION" ]; then
             echo -e "${RED}Invalid selection${NC}"
             exit 1
         fi
         
-        echo "Selected connection: $SNOW_CONNECTION"
+        USE_DEFAULT_CONNECTION=false
     fi
 fi
 
+# Helper function to run snow sql with or without connection parameter
+run_snow_sql() {
+    local sql_file=$1
+    if [ "$USE_DEFAULT_CONNECTION" = true ]; then
+        snow sql -f "$sql_file"
+    else
+        snow sql --connection "$SNOW_CONNECTION" -f "$sql_file"
+    fi
+}
+
+if [ "$USE_DEFAULT_CONNECTION" = true ]; then
+    echo -e "${GREEN}✓ Connected to Snowflake (using default connection)${NC}"
+else
+    echo -e "${GREEN}✓ Connected to Snowflake (connection: ${SNOW_CONNECTION})${NC}"
+fi
 echo ""
 
 # ============================================
 # PERMISSION CHECKS
 # ============================================
-echo -e "${BLUE}Step 2: Checking permissions${NC}"
+echo -e "${BLUE}Step 2: Checking required permissions${NC}"
 
-# Temporarily disable exit on error for permission checks
+# Temporarily disable exit on error for role checks
 set +e
 
-# Check SYSADMIN
-SYSADMIN_CHECK=$(snow sql -q "USE ROLE SYSADMIN; SELECT 'OK' as result;" --format json 2>&1)
-if echo "$SYSADMIN_CHECK" | grep -q "OK"; then
-    echo -e "${GREEN}✓ SYSADMIN role available${NC}"
+# Helper function to run snow sql with or without connection parameter
+run_snow_sql_check() {
+    if [ "$USE_DEFAULT_CONNECTION" = true ]; then
+        snow sql "$@"
+    else
+        snow sql --connection "$SNOW_CONNECTION" "$@"
+    fi
+}
+
+# Create temporary file for role checks
+TEMP_CHECK=$(mktemp)
+
+# Test SYSADMIN access
+cat > "$TEMP_CHECK" << 'EOF'
+USE ROLE SYSADMIN;
+SELECT 'SYSADMIN_OK' as result;
+EOF
+
+SYSADMIN_RESULT=$(run_snow_sql_check -f "$TEMP_CHECK" 2>&1)
+SYSADMIN_EXIT=$?
+
+if [ $SYSADMIN_EXIT -eq 0 ] && echo "$SYSADMIN_RESULT" | grep -q "SYSADMIN_OK"; then
+    HAS_SYSADMIN=1
 else
-    echo -e "${RED}✗ SYSADMIN role not available${NC}"
-    echo "This script requires SYSADMIN privileges."
-    exit 1
+    HAS_SYSADMIN=0
 fi
 
-# Check SECURITYADMIN
-SECURITYADMIN_CHECK=$(snow sql -q "USE ROLE SECURITYADMIN; SELECT 'OK' as result;" --format json 2>&1)
-if echo "$SECURITYADMIN_CHECK" | grep -q "OK"; then
-    echo -e "${GREEN}✓ SECURITYADMIN role available${NC}"
+# Test SECURITYADMIN access
+cat > "$TEMP_CHECK" << 'EOF'
+USE ROLE SECURITYADMIN;
+SELECT 'SECURITYADMIN_OK' as result;
+EOF
+
+SECURITYADMIN_RESULT=$(run_snow_sql_check -f "$TEMP_CHECK" 2>&1)
+SECURITYADMIN_EXIT=$?
+
+if [ $SECURITYADMIN_EXIT -eq 0 ] && echo "$SECURITYADMIN_RESULT" | grep -q "SECURITYADMIN_OK"; then
+    HAS_SECURITYADMIN=1
 else
-    echo -e "${RED}✗ SECURITYADMIN role not available${NC}"
-    echo "This script requires SECURITYADMIN privileges."
-    exit 1
+    HAS_SECURITYADMIN=0
 fi
 
-# Check ACCOUNTADMIN (for Streamlit)
-ACCOUNTADMIN_CHECK=$(snow sql -q "USE ROLE ACCOUNTADMIN; SELECT 'OK' as result;" --format json 2>&1)
-if echo "$ACCOUNTADMIN_CHECK" | grep -q "OK"; then
-    echo -e "${GREEN}✓ ACCOUNTADMIN role available${NC}"
-    HAS_ACCOUNTADMIN=true
+# Test ACCOUNTADMIN access (optional, for Streamlit)
+cat > "$TEMP_CHECK" << 'EOF'
+USE ROLE ACCOUNTADMIN;
+SELECT 'ACCOUNTADMIN_OK' as result;
+EOF
+
+ACCOUNTADMIN_RESULT=$(run_snow_sql_check -f "$TEMP_CHECK" 2>&1)
+ACCOUNTADMIN_EXIT=$?
+
+if [ $ACCOUNTADMIN_EXIT -eq 0 ] && echo "$ACCOUNTADMIN_RESULT" | grep -q "ACCOUNTADMIN_OK"; then
+    HAS_ACCOUNTADMIN=1
 else
-    echo -e "${YELLOW}⚠ ACCOUNTADMIN role not available (Streamlit removal may fail)${NC}"
-    HAS_ACCOUNTADMIN=false
+    HAS_ACCOUNTADMIN=0
 fi
+
+rm -f "$TEMP_CHECK"
 
 # Re-enable exit on error
 set -e
 
+# Display role check results
+echo ""
+echo -e "${BLUE}Role Access Status:${NC}"
+
+# Check SYSADMIN
+if [ "$HAS_SYSADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ SYSADMIN role: Available${NC}"
+else
+    echo -e "${RED}  ✗ SYSADMIN role: NOT Available${NC}"
+fi
+
+# Check SECURITYADMIN
+if [ "$HAS_SECURITYADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ SECURITYADMIN role: Available${NC}"
+else
+    echo -e "${RED}  ✗ SECURITYADMIN role: NOT Available${NC}"
+fi
+
+# Check ACCOUNTADMIN
+if [ "$HAS_ACCOUNTADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ ACCOUNTADMIN role: Available${NC}"
+    HAS_ACCOUNTADMIN=true
+else
+    echo -e "${YELLOW}  ⚠ ACCOUNTADMIN role: NOT Available (Streamlit removal may fail)${NC}"
+    HAS_ACCOUNTADMIN=false
+fi
+
+echo ""
+
+# Check if user has required roles
+MISSING_ROLES=()
+if [ "$HAS_SYSADMIN" = "0" ]; then
+    MISSING_ROLES+=("SYSADMIN")
+fi
+if [ "$HAS_SECURITYADMIN" = "0" ]; then
+    MISSING_ROLES+=("SECURITYADMIN")
+fi
+
+if [ ${#MISSING_ROLES[@]} -gt 0 ]; then
+    echo -e "${RED}✗ ERROR: Missing required roles${NC}"
+    echo ""
+    echo -e "${YELLOW}This script requires both SYSADMIN and SECURITYADMIN roles to:${NC}"
+    echo "  - Drop database objects (SYSADMIN)"
+    echo "  - Drop custom roles (SECURITYADMIN)"
+    echo ""
+    echo -e "${YELLOW}Please have your Snowflake administrator grant the missing role(s):${NC}"
+    for role in "${MISSING_ROLES[@]}"; do
+        echo -e "${YELLOW}  GRANT ROLE ${role} TO USER $(whoami);${NC}"
+    done
+    echo ""
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All required roles available - proceeding with undeploy${NC}"
 echo ""
 
 # ============================================

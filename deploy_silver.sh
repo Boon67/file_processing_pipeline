@@ -40,6 +40,13 @@ case "${OS_TYPE}" in
     *)          OS="Unknown";;
 esac
 
+# Set UTF-8 encoding for Windows to prevent charmap codec errors
+if [ "$OS" = "Windows" ]; then
+    export PYTHONIOENCODING=utf-8
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+fi
+
 # Detect Python command (prefer python, fall back to python3)
 if command -v python &> /dev/null; then
     PYTHON_CMD="python"
@@ -430,12 +437,30 @@ execute_sql() {
     echo -e "${GREEN}File: ${sql_file}${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
+    # On Windows, create ASCII-safe version to avoid charmap codec errors
+    local exec_file="$sql_file"
+    if [ "$OS" = "Windows" ]; then
+        local temp_file="${sql_file}.tmp"
+        # Remove problematic Unicode box-drawing characters
+        iconv -f UTF-8 -t ASCII//TRANSLIT "$sql_file" > "$temp_file" 2>/dev/null || \
+        sed 's/[─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▶▼◀▲→↓←↑]/=/g' "$sql_file" > "$temp_file"
+        exec_file="$temp_file"
+    fi
+    
     # Use snow sql to execute the SQL file
-    if run_snow_sql -f "$sql_file" ; then
+    if run_snow_sql -f "$exec_file" ; then
         echo -e "${GREEN}✓ Successfully executed: ${description}${NC}"
+        # Clean up temp file on Windows
+        if [ "$OS" = "Windows" ] && [ -f "$temp_file" ]; then
+            rm -f "$temp_file"
+        fi
     else
         echo -e "${RED}✗ Failed to execute: ${description}${NC}"
         echo -e "${RED}Please check your connection has SYSADMIN and SECURITYADMIN permissions${NC}"
+        # Clean up temp file on Windows
+        if [ "$OS" = "Windows" ] && [ -f "$temp_file" ]; then
+            rm -f "$temp_file"
+        fi
         exit 1
     fi
 }
