@@ -596,7 +596,7 @@ else
     echo ""
     echo -e "${GREEN}Step 5: Uploading configuration files (optional)${NC}"
     
-    # Upload config files to CONFIG_STAGE in PUBLIC schema
+    # Upload config files to CONFIG_STAGE in PUBLIC schema using SQL PUT command
     # Note: This is optional - Streamlit app has default values as fallback
     CONFIG_STAGE_PATH="@${DATABASE_NAME}.PUBLIC.CONFIG_STAGE"
     
@@ -605,12 +605,17 @@ else
     
     # Upload the config file being used
     if [ -f "$CONFIG_FILE" ]; then
-        if [ "$USE_DEFAULT_CONNECTION" = true ]; then
-            UPLOAD_CMD="snow stage copy \"$CONFIG_FILE\" \"${CONFIG_STAGE_PATH}/\" --overwrite"
-        else
-            UPLOAD_CMD="snow stage copy \"$CONFIG_FILE\" \"${CONFIG_STAGE_PATH}/\" --overwrite --connection \"$SNOW_CONNECTION\""
-        fi
-        if eval "$UPLOAD_CMD" 2>/dev/null; then
+        UPLOAD_CONFIG_SQL="${TEMP_DIR}/upload_config.sql"
+        # Convert path for Windows compatibility
+        CONFIG_FILE_PATH=$(convert_path_for_snowflake "$(pwd)/${CONFIG_FILE}")
+        
+        cat > "$UPLOAD_CONFIG_SQL" << EOF
+USE DATABASE ${DATABASE_NAME};
+USE SCHEMA PUBLIC;
+PUT file://${CONFIG_FILE_PATH} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+EOF
+        
+        if run_snow_sql -f "$UPLOAD_CONFIG_SQL" 2>/dev/null; then
             echo -e "${GREEN}✓ Uploaded configuration file - Streamlit app will use your custom settings${NC}"
         else
             echo -e "${YELLOW}⚠ Config upload skipped - Streamlit app will use default values${NC}"
