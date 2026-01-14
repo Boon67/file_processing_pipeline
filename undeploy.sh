@@ -128,18 +128,18 @@ if ! command -v snow &> /dev/null; then
     echo "Please install Snowflake CLI from: https://docs.snowflake.com/en/developer-guide/snowflake-cli/index"
     echo ""
     echo "Installation: pip install snowflake-cli-labs"
-    exit 1
-fi
-
+        exit 1
+    fi
+    
 # Get list of available connections
 echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
 CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null)
 CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
-
+    
 if [ "$CONNECTION_COUNT" = "0" ]; then
     echo -e "${RED}ERROR: No Snowflake connections configured${NC}"
     echo "Please configure a connection with: snow connection add"
-    exit 1
+        exit 1
 elif [ "$CONNECTION_COUNT" = "1" ]; then
     # Only one connection, use it
     SNOW_CONNECTION=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(data[0].get('connection_name', data[0].get('name', '')))" 2>/dev/null)
@@ -329,10 +329,10 @@ echo ""
 echo -e "${BLUE}Step 3: Removing Streamlit applications${NC}"
 
 # Use SYSADMIN with the custom ADMIN role to drop Streamlit apps
-STREAMLIT_DROP_SQL="${TEMP_DIR}/drop_streamlit.sql"
+    STREAMLIT_DROP_SQL="${TEMP_DIR}/drop_streamlit.sql"
 ADMIN_ROLE="${DATABASE_NAME}_ADMIN"
 
-cat > "$STREAMLIT_DROP_SQL" << EOF
+    cat > "$STREAMLIT_DROP_SQL" << EOF
 -- Use SYSADMIN to switch to the custom ADMIN role
 USE ROLE SYSADMIN;
 
@@ -347,8 +347,8 @@ DROP STREAMLIT IF EXISTS ${STREAMLIT_APP_NAME};
 -- Drop Silver Streamlit app (if exists)
 DROP STREAMLIT IF EXISTS ${SILVER_STREAMLIT_APP_NAME:-SILVER_TRANSFORMATION_MANAGER};
 EOF
-
-if run_snow_sql "$STREAMLIT_DROP_SQL" 2>&1 | tee /tmp/streamlit_drop.log; then
+    
+    if run_snow_sql "$STREAMLIT_DROP_SQL" 2>&1 | tee /tmp/streamlit_drop.log; then
     echo -e "${GREEN}✓ Streamlit apps removed${NC}"
 else
     echo -e "${YELLOW}⚠ Could not remove Streamlit apps (may not exist or role may not have access)${NC}"

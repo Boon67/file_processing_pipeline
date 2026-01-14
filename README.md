@@ -205,7 +205,7 @@ The deployment scripts support multiple platforms:
 
 #### Install Snowflake CLI
 
-**macOS / Linux / Git Bash (Windows):**
+**macOS / Linux:**
 ```bash
 pip install snowflake-cli-labs
 
@@ -216,25 +216,27 @@ snow connection add
 snow connection test
 ```
 
-**Windows-Specific Setup:**
-1. Install [Git for Windows](https://git-scm.com/download/win) (includes Git Bash)
-2. Install [Python](https://www.python.org/downloads/) (if not already installed)
-3. Open **Git Bash** (not Command Prompt or PowerShell)
-4. Run the pip install command above
-
 For more information: [Snowflake CLI Documentation](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index)
 
 #### Windows-Specific Setup
 
-If you're on Windows, follow these additional steps:
+If you're on Windows, follow these steps:
 
-1. **Install Git for Windows**: Download from [git-scm.com](https://git-scm.com/download/win)
-2. **Open Git Bash**: Right-click in your project folder → "Git Bash Here"
-3. **Make scripts executable**:
+1. **Install Git for Windows**: Download from [git-scm.com](https://git-scm.com/download/win) (includes Git Bash)
+2. **Install Python**: Download from [python.org](https://www.python.org/downloads/) if not already installed
+3. **Open Git Bash**: Right-click in your project folder → "Git Bash Here"
+4. **Install Snowflake CLI**:
+   ```bash
+   pip install snowflake-cli-labs
+   snow connection add
+   snow connection test
+   ```
+5. **Make scripts executable**:
    ```bash
    chmod +x deploy.sh deploy_bronze.sh deploy_silver.sh undeploy.sh
    ```
-4. **Run deployment**: All commands must be run in Git Bash, not Command Prompt or PowerShell
+
+**Important**: All deployment commands must be run in **Git Bash**, not Command Prompt or PowerShell.
 
 **Common Windows Issues:**
 - **Character encoding errors**: Scripts automatically handle Unicode characters

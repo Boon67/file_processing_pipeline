@@ -49,18 +49,18 @@ DECLARE
     result_msg VARCHAR;
 BEGIN
     -- Create temporary table for CSV data
-    CREATE OR REPLACE TEMPORARY TABLE temp_transformation_rules (
-        rule_id VARCHAR(50),
-        rule_name VARCHAR(500),
-        rule_type VARCHAR(50),
-        target_table VARCHAR(500),
-        target_column VARCHAR(500),
-        rule_logic VARCHAR(5000),
-        rule_parameters VARCHAR(5000),
+            CREATE OR REPLACE TEMPORARY TABLE temp_transformation_rules (
+                rule_id VARCHAR(50),
+                rule_name VARCHAR(500),
+                rule_type VARCHAR(50),
+                target_table VARCHAR(500),
+                target_column VARCHAR(500),
+                rule_logic VARCHAR(5000),
+                rule_parameters VARCHAR(5000),
         priority VARCHAR(10),
-        error_action VARCHAR(50),
-        description VARCHAR(5000),
-        active VARCHAR(10)
+                error_action VARCHAR(50),
+                description VARCHAR(5000),
+                active VARCHAR(10)
     );
     
     -- Load CSV into temporary table
@@ -68,43 +68,43 @@ BEGIN
         FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = ''"'')';
     
     -- Merge into transformation_rules table (prevents duplicates)
-    MERGE INTO transformation_rules tr
-    USING (
-        SELECT 
-            UPPER(rule_id) as rule_id,
-            rule_name,
-            UPPER(rule_type) as rule_type,
-            CASE WHEN target_table IS NOT NULL AND target_table != '' 
-                 THEN UPPER(target_table) ELSE NULL END as target_table,
-            CASE WHEN target_column IS NOT NULL AND target_column != '' 
-                 THEN UPPER(target_column) ELSE NULL END as target_column,
-            rule_logic,
-            TRY_PARSE_JSON(rule_parameters) as rule_parameters,
+            MERGE INTO transformation_rules tr
+            USING (
+                SELECT 
+                    UPPER(rule_id) as rule_id,
+                    rule_name,
+                    UPPER(rule_type) as rule_type,
+                    CASE WHEN target_table IS NOT NULL AND target_table != '' 
+                         THEN UPPER(target_table) ELSE NULL END as target_table,
+                    CASE WHEN target_column IS NOT NULL AND target_column != '' 
+                         THEN UPPER(target_column) ELSE NULL END as target_column,
+                    rule_logic,
+                    TRY_PARSE_JSON(rule_parameters) as rule_parameters,
             COALESCE(TRY_CAST(priority AS INTEGER), 100) as priority,
-            COALESCE(UPPER(error_action), 'LOG') as error_action,
-            description,
-            CASE WHEN UPPER(active) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as active
-        FROM temp_transformation_rules
-    ) src
-    ON tr.rule_id = src.rule_id
-    WHEN MATCHED THEN UPDATE SET
-        rule_name = src.rule_name,
-        rule_type = src.rule_type,
-        target_table = src.target_table,
-        target_column = src.target_column,
-        rule_logic = src.rule_logic,
-        rule_parameters = src.rule_parameters,
-        priority = src.priority,
-        error_action = src.error_action,
-        description = src.description,
-        active = src.active,
-        updated_timestamp = CURRENT_TIMESTAMP()
-    WHEN NOT MATCHED THEN INSERT (
-        rule_id, rule_name, rule_type, target_table, target_column,
-        rule_logic, rule_parameters, priority, error_action, description, active
-    ) VALUES (
-        src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column,
-        src.rule_logic, src.rule_parameters, src.priority, src.error_action, src.description, src.active
+                    COALESCE(UPPER(error_action), 'LOG') as error_action,
+                    description,
+                    CASE WHEN UPPER(active) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as active
+                FROM temp_transformation_rules
+            ) src
+            ON tr.rule_id = src.rule_id
+            WHEN MATCHED THEN UPDATE SET
+                rule_name = src.rule_name,
+                rule_type = src.rule_type,
+                target_table = src.target_table,
+                target_column = src.target_column,
+                rule_logic = src.rule_logic,
+                rule_parameters = src.rule_parameters,
+                priority = src.priority,
+                error_action = src.error_action,
+                description = src.description,
+                active = src.active,
+                updated_timestamp = CURRENT_TIMESTAMP()
+            WHEN NOT MATCHED THEN INSERT (
+                rule_id, rule_name, rule_type, target_table, target_column,
+                rule_logic, rule_parameters, priority, error_action, description, active
+            ) VALUES (
+                src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column,
+                src.rule_logic, src.rule_parameters, src.priority, src.error_action, src.description, src.active
     );
     
     rows_loaded := SQLROWCOUNT;
