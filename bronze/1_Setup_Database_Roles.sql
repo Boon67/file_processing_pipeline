@@ -349,11 +349,13 @@ EXECUTE IMMEDIATE $sql_cmd;
 SET sql_cmd = (SELECT 'SHOW DATABASES LIKE ''' || $database_name || '''');
 EXECUTE IMMEDIATE $sql_cmd;
 
-SET sql_cmd = (SELECT 'SHOW GRANTS ON DATABASE ' || $database_name);
-EXECUTE IMMEDIATE $sql_cmd;
+-- Note: SHOW GRANTS requires appropriate privileges and may fail on redeployment
+-- These are informational only and failures won't affect deployment
+-- SET sql_cmd = (SELECT 'SHOW GRANTS ON DATABASE ' || $database_name);
+-- EXECUTE IMMEDIATE $sql_cmd;
 
-SET sql_cmd = (SELECT 'SHOW GRANTS ON SCHEMA ' || $database_name || '.PUBLIC');
-EXECUTE IMMEDIATE $sql_cmd;
+-- SET sql_cmd = (SELECT 'SHOW GRANTS ON SCHEMA ' || $database_name || '.PUBLIC');
+-- EXECUTE IMMEDIATE $sql_cmd;
 
 -- =================================================================
 -- SECTION 8: User Assignment (Use SECURITYADMIN)

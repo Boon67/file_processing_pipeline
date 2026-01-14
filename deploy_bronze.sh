@@ -594,37 +594,7 @@ if [ ! -f "bronze/bronze_streamlit/streamlit_app.py" ]; then
     echo -e "${YELLOW}⚠ Warning: bronze/bronze_streamlit/streamlit_app.py not found, skipping Streamlit deployment${NC}"
 else
     echo ""
-    echo -e "${GREEN}Step 5: Uploading configuration files (optional)${NC}"
-    
-    # Upload config files to CONFIG_STAGE in PUBLIC schema using SQL PUT command
-    # Note: This is optional - Streamlit app has default values as fallback
-    CONFIG_STAGE_PATH="@${DATABASE_NAME}.PUBLIC.CONFIG_STAGE"
-    
-    echo -e "${BLUE}Uploading configuration to ${CONFIG_STAGE_PATH}...${NC}"
-    echo -e "${BLUE}(Streamlit app will use defaults if upload fails)${NC}"
-    
-    # Upload the config file being used
-    if [ -f "$CONFIG_FILE" ]; then
-        UPLOAD_CONFIG_SQL="${TEMP_DIR}/upload_config.sql"
-        # Convert path for Windows compatibility
-        CONFIG_FILE_PATH=$(convert_path_for_snowflake "$(pwd)/${CONFIG_FILE}")
-        
-        cat > "$UPLOAD_CONFIG_SQL" << EOF
-USE DATABASE ${DATABASE_NAME};
-USE SCHEMA PUBLIC;
-PUT file://${CONFIG_FILE_PATH} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-EOF
-        
-        if run_snow_sql -f "$UPLOAD_CONFIG_SQL" 2>/dev/null; then
-            echo -e "${GREEN}✓ Uploaded configuration file - Streamlit app will use your custom settings${NC}"
-        else
-            echo -e "${YELLOW}⚠ Config upload skipped - Streamlit app will use default values${NC}"
-            echo -e "${YELLOW}  (This is fine if you're using default database/schema/warehouse names)${NC}"
-        fi
-    fi
-    
-    echo ""
-    echo -e "${GREEN}Step 6: Creating Streamlit stages${NC}"
+    echo -e "${GREEN}Step 5: Creating Streamlit stages${NC}"
     
     # First create the stages using SQL (required before snow streamlit deploy)
     STREAMLIT_STAGES_SQL="${TEMP_DIR}/create_streamlit_stages.sql"
@@ -670,6 +640,47 @@ EOF
     else
         echo -e "${YELLOW}⚠ Warning: Could not create stages (may already exist)${NC}"
     fi
+    
+    echo ""
+    echo -e "${GREEN}Step 6: Uploading configuration files (optional)${NC}"
+    
+    # Upload config files to CONFIG_STAGE in PUBLIC schema using SQL PUT command
+    # Note: This is optional - Streamlit app has default values as fallback
+    CONFIG_STAGE_PATH="@${DATABASE_NAME}.PUBLIC.CONFIG_STAGE"
+    
+    echo -e "${BLUE}Uploading configuration to ${CONFIG_STAGE_PATH}...${NC}"
+    echo -e "${BLUE}(Streamlit app will use defaults if upload fails)${NC}"
+    
+    # Temporarily disable exit on error for optional upload
+    set +e
+    
+    # Upload the config file being used
+    if [ -f "$CONFIG_FILE" ]; then
+        UPLOAD_CONFIG_SQL="${TEMP_DIR}/upload_config.sql"
+        # Convert path for Windows compatibility
+        CONFIG_FILE_PATH=$(convert_path_for_snowflake "$(pwd)/${CONFIG_FILE}")
+        
+        cat > "$UPLOAD_CONFIG_SQL" << EOF
+USE DATABASE ${DATABASE_NAME};
+USE SCHEMA PUBLIC;
+PUT file://${CONFIG_FILE_PATH} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+EOF
+        
+        # Capture output to check for success
+        UPLOAD_OUTPUT=$(run_snow_sql -f "$UPLOAD_CONFIG_SQL" 2>&1)
+        UPLOAD_EXIT=$?
+        
+        # Check if upload was successful (PUT command returns status in output)
+        if [ $UPLOAD_EXIT -eq 0 ] && echo "$UPLOAD_OUTPUT" | grep -q "UPLOADED"; then
+            echo -e "${GREEN}✓ Uploaded configuration file - Streamlit app will use your custom settings${NC}"
+        else
+            echo -e "${YELLOW}⚠ Config upload skipped - Streamlit app will use default values${NC}"
+            echo -e "${YELLOW}  (This is fine if you're using default database/schema/warehouse names)${NC}"
+        fi
+    fi
+    
+    # Re-enable exit on error
+    set -e
     
     echo ""
     echo -e "${GREEN}Step 7: Deploying Streamlit application using Snowflake CLI${NC}"

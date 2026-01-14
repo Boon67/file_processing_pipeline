@@ -12,12 +12,16 @@ Complete guide to all documentation in the Snowflake File Processing Pipeline pr
 
 ## 🏗️ Architecture & Design
 
-| Document | Description |
-|----------|-------------|
-| **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** | System architecture and design decisions |
-| **[docs/diagrams/README.md](docs/diagrams/README.md)** | Visual architecture diagrams and workflows |
-| **[docs/diagrams/workflow_diagram_bronze_professional.png](docs/diagrams/workflow_diagram_bronze_professional.png)** | Bronze layer workflow diagram |
-| **[docs/diagrams/workflow_diagram_silver_professional.png](docs/diagrams/workflow_diagram_silver_professional.png)** | Silver layer workflow diagram |
+| Document | Description | Audience |
+|----------|-------------|----------|
+| **[docs/design/SYSTEM_DESIGN.md](docs/design/SYSTEM_DESIGN.md)** | Comprehensive system design document | Architects, Management |
+| **[docs/design/TECHNICAL_SPECIFICATION.md](docs/design/TECHNICAL_SPECIFICATION.md)** | Detailed technical specifications | Developers, Engineers |
+| **[docs/design/DEPLOYMENT_GUIDE.md](docs/design/DEPLOYMENT_GUIDE.md)** | Complete deployment guide | DevOps, Administrators |
+| **[docs/design/README.md](docs/design/README.md)** | Design documentation overview | All |
+| **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** | System architecture and design decisions | Technical |
+| **[docs/diagrams/README.md](docs/diagrams/README.md)** | Visual architecture diagrams and workflows | All |
+| **[docs/diagrams/workflow_diagram_bronze_professional.png](docs/diagrams/workflow_diagram_bronze_professional.png)** | Bronze layer workflow diagram | All |
+| **[docs/diagrams/workflow_diagram_silver_professional.png](docs/diagrams/workflow_diagram_silver_professional.png)** | Silver layer workflow diagram | All |
 
 ## 📖 User Guides
 

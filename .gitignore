@@ -51,8 +51,10 @@ logs/
 *.temp
 .cache/
 
-# Output bundles (generated files)
-*/output/bundle/
+# Output bundles and generated files
+*/output/
+output/
+**/output/bundle/
 
 # Environment files with secrets
 .env

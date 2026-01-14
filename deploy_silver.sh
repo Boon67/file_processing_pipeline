@@ -714,7 +714,12 @@ USE SCHEMA PUBLIC;
 PUT file://${CONFIG_FILE_PATH} ${CONFIG_STAGE_PATH} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 EOF
         
-        if run_snow_sql -f "$UPLOAD_SQL" 2>/dev/null; then
+        # Capture output to check for success
+        UPLOAD_OUTPUT=$(run_snow_sql -f "$UPLOAD_SQL" 2>&1)
+        UPLOAD_EXIT=$?
+        
+        # Check if upload was successful (PUT command returns status in output)
+        if [ $UPLOAD_EXIT -eq 0 ] && echo "$UPLOAD_OUTPUT" | grep -q "UPLOADED"; then
             echo -e "${GREEN}✓ Uploaded configuration file - Streamlit app will use your custom settings${NC}"
         else
             echo -e "${YELLOW}⚠ Config upload skipped - Streamlit app will use default values${NC}"
