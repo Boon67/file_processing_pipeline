@@ -41,92 +41,85 @@ USE SCHEMA IDENTIFIER($SILVER_SCHEMA_NAME);
 
 CREATE OR REPLACE PROCEDURE load_transformation_rules_from_csv(stage_path VARCHAR)
 RETURNS VARCHAR
-LANGUAGE PYTHON
-RUNTIME_VERSION = '3.11'
-PACKAGES = ('snowflake-snowpark-python')
-HANDLER = 'load_transformation_rules_from_csv'
+LANGUAGE SQL
 AS
 $$
-def load_transformation_rules_from_csv(session, stage_path):
-    """Load transformation rules from CSV file"""
+DECLARE
+    rows_loaded INTEGER DEFAULT 0;
+    result_msg VARCHAR;
+BEGIN
+    -- Create temporary table for CSV data
+    CREATE OR REPLACE TEMPORARY TABLE temp_transformation_rules (
+        rule_id VARCHAR(50),
+        rule_name VARCHAR(500),
+        rule_type VARCHAR(50),
+        target_table VARCHAR(500),
+        target_column VARCHAR(500),
+        rule_logic VARCHAR(5000),
+        rule_parameters VARCHAR(5000),
+        priority VARCHAR(10),
+        error_action VARCHAR(50),
+        description VARCHAR(5000),
+        active VARCHAR(10)
+    );
     
-    try:
-        # Create temporary table for CSV data
-        session.sql("""
-            CREATE OR REPLACE TEMPORARY TABLE temp_transformation_rules (
-                rule_id VARCHAR(50),
-                rule_name VARCHAR(500),
-                rule_type VARCHAR(50),
-                target_table VARCHAR(500),
-                target_column VARCHAR(500),
-                rule_logic VARCHAR(5000),
-                rule_parameters VARCHAR(5000),
-                priority INTEGER,
-                error_action VARCHAR(50),
-                description VARCHAR(5000),
-                active VARCHAR(10)
-            )
-        """).collect()
-        
-        # Load CSV into temporary table
-        copy_query = f"""
-            COPY INTO temp_transformation_rules FROM {stage_path}
-            FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"')
-        """
-        session.sql(copy_query).collect()
-        
-        # Merge into transformation_rules table
-        merge_query = """
-            MERGE INTO transformation_rules tr
-            USING (
-                SELECT 
-                    UPPER(rule_id) as rule_id,
-                    rule_name,
-                    UPPER(rule_type) as rule_type,
-                    CASE WHEN target_table IS NOT NULL AND target_table != '' 
-                         THEN UPPER(target_table) ELSE NULL END as target_table,
-                    CASE WHEN target_column IS NOT NULL AND target_column != '' 
-                         THEN UPPER(target_column) ELSE NULL END as target_column,
-                    rule_logic,
-                    TRY_PARSE_JSON(rule_parameters) as rule_parameters,
-                    COALESCE(priority, 100) as priority,
-                    COALESCE(UPPER(error_action), 'LOG') as error_action,
-                    description,
-                    CASE WHEN UPPER(active) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as active
-                FROM temp_transformation_rules
-            ) src
-            ON tr.rule_id = src.rule_id
-            WHEN MATCHED THEN UPDATE SET
-                rule_name = src.rule_name,
-                rule_type = src.rule_type,
-                target_table = src.target_table,
-                target_column = src.target_column,
-                rule_logic = src.rule_logic,
-                rule_parameters = src.rule_parameters,
-                priority = src.priority,
-                error_action = src.error_action,
-                description = src.description,
-                active = src.active,
-                updated_timestamp = CURRENT_TIMESTAMP()
-            WHEN NOT MATCHED THEN INSERT (
-                rule_id, rule_name, rule_type, target_table, target_column,
-                rule_logic, rule_parameters, priority, error_action, description, active
-            ) VALUES (
-                src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column,
-                src.rule_logic, src.rule_parameters, src.priority, src.error_action, src.description, src.active
-            )
-        """
-        
-        result = session.sql(merge_query).collect()
-        rows_loaded = result[0]['number of rows inserted'] + result[0]['number of rows updated'] if result else 0
-        
-        # Clean up
-        session.sql("DROP TABLE IF EXISTS temp_transformation_rules").collect()
-        
-        return f"Successfully loaded/updated {rows_loaded} transformation rules from {stage_path}"
-        
-    except Exception as e:
-        return f"Error loading transformation rules: {str(e)}"
+    -- Load CSV into temporary table
+    EXECUTE IMMEDIATE 'COPY INTO temp_transformation_rules FROM ' || :stage_path || '
+        FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = ''"'')';
+    
+    -- Merge into transformation_rules table (prevents duplicates)
+    MERGE INTO transformation_rules tr
+    USING (
+        SELECT 
+            UPPER(rule_id) as rule_id,
+            rule_name,
+            UPPER(rule_type) as rule_type,
+            CASE WHEN target_table IS NOT NULL AND target_table != '' 
+                 THEN UPPER(target_table) ELSE NULL END as target_table,
+            CASE WHEN target_column IS NOT NULL AND target_column != '' 
+                 THEN UPPER(target_column) ELSE NULL END as target_column,
+            rule_logic,
+            TRY_PARSE_JSON(rule_parameters) as rule_parameters,
+            COALESCE(TRY_CAST(priority AS INTEGER), 100) as priority,
+            COALESCE(UPPER(error_action), 'LOG') as error_action,
+            description,
+            CASE WHEN UPPER(active) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as active
+        FROM temp_transformation_rules
+    ) src
+    ON tr.rule_id = src.rule_id
+    WHEN MATCHED THEN UPDATE SET
+        rule_name = src.rule_name,
+        rule_type = src.rule_type,
+        target_table = src.target_table,
+        target_column = src.target_column,
+        rule_logic = src.rule_logic,
+        rule_parameters = src.rule_parameters,
+        priority = src.priority,
+        error_action = src.error_action,
+        description = src.description,
+        active = src.active,
+        updated_timestamp = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (
+        rule_id, rule_name, rule_type, target_table, target_column,
+        rule_logic, rule_parameters, priority, error_action, description, active
+    ) VALUES (
+        src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column,
+        src.rule_logic, src.rule_parameters, src.priority, src.error_action, src.description, src.active
+    );
+    
+    rows_loaded := SQLROWCOUNT;
+    
+    -- Clean up
+    DROP TABLE IF EXISTS temp_transformation_rules;
+    
+    result_msg := 'Successfully loaded/updated ' || rows_loaded || ' transformation rules from ' || :stage_path;
+    RETURN result_msg;
+    
+EXCEPTION
+    WHEN OTHER THEN
+        result_msg := 'Error loading transformation rules: ' || SQLERRM;
+        RETURN result_msg;
+END;
 $$;
 
 -- ============================================
