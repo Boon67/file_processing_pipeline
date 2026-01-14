@@ -394,7 +394,42 @@ convert_path_for_snowflake() {
     if [ "$OS" = "Windows" ]; then
         # Convert Git Bash path to Windows path
         # /c/users/... -> C:/users/...
-        echo "$path" | sed 's|^/\([a-z]\)/|\U\1:/|'
+        if [[ "$path" =~ ^/([a-z])/(.*)$ ]]; then
+            local drive="${BASH_REMATCH[1]}"
+            local rest="${BASH_REMATCH[2]}"
+            # Convert drive letter to uppercase
+            case "$drive" in
+                a) drive="A" ;;
+                b) drive="B" ;;
+                c) drive="C" ;;
+                d) drive="D" ;;
+                e) drive="E" ;;
+                f) drive="F" ;;
+                g) drive="G" ;;
+                h) drive="H" ;;
+                i) drive="I" ;;
+                j) drive="J" ;;
+                k) drive="K" ;;
+                l) drive="L" ;;
+                m) drive="M" ;;
+                n) drive="N" ;;
+                o) drive="O" ;;
+                p) drive="P" ;;
+                q) drive="Q" ;;
+                r) drive="R" ;;
+                s) drive="S" ;;
+                t) drive="T" ;;
+                u) drive="U" ;;
+                v) drive="V" ;;
+                w) drive="W" ;;
+                x) drive="X" ;;
+                y) drive="Y" ;;
+                z) drive="Z" ;;
+            esac
+            echo "${drive}:/${rest}"
+        else
+            echo "$path"
+        fi
     else
         echo "$path"
     fi
@@ -553,21 +588,24 @@ CURRENT_DIR=$(convert_path_for_snowflake "$(pwd)")
 # Upload target schemas CSV
 if [ -f "silver/mappings/target_tables.csv" ]; then
     echo "Uploading target_tables.csv..."
-    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/target_tables.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    TARGET_CSV_PATH=$(convert_path_for_snowflake "$(pwd)/silver/mappings/target_tables.csv")
+    run_snow_sql -q "PUT file://${TARGET_CSV_PATH} @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ target_tables.csv uploaded${NC}"
 fi
 
 # Upload field mappings CSV
 if [ -f "silver/mappings/field_mappings.csv" ]; then
     echo "Uploading field_mappings.csv..."
-    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/field_mappings.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    FIELD_CSV_PATH=$(convert_path_for_snowflake "$(pwd)/silver/mappings/field_mappings.csv")
+    run_snow_sql -q "PUT file://${FIELD_CSV_PATH} @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ field_mappings.csv uploaded${NC}"
 fi
 
 # Upload transformation rules CSV
 if [ -f "silver/mappings/transformation_rules.csv" ]; then
     echo "Uploading transformation_rules.csv..."
-    run_snow_sql -q "PUT file://${CURRENT_DIR}/silver/mappings/transformation_rules.csv @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+    TRANSFORM_CSV_PATH=$(convert_path_for_snowflake "$(pwd)/silver/mappings/transformation_rules.csv")
+    run_snow_sql -q "PUT file://${TRANSFORM_CSV_PATH} @$DATABASE_NAME.$SILVER_SCHEMA_NAME.$SILVER_CONFIG_STAGE_NAME AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
     echo -e "${GREEN}✓ transformation_rules.csv uploaded${NC}"
 fi
 
