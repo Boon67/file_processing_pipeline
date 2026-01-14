@@ -7,7 +7,7 @@ An automated file ingestion pipeline built entirely on **Snowflake Native Featur
 - **[Quick Start Guide](QUICK_START.md)** - Get started in 10 minutes
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment verification
 - **[User Guide](docs/USER_GUIDE.md)** - Detailed usage instructions
-- **[Architecture](docs/architecture/ARCHITECTURE.md)** - System design and components
+- **[Architecture](docs/design/ARCHITECTURE.md)** - System design and components
 - **[Deployment Verification](silver/DEPLOYMENT_VERIFICATION.md)** - Post-deployment validation
 - **[Documentation Index](DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
@@ -56,16 +56,16 @@ Both layers include modern web interfaces built with Streamlit in Snowflake for 
 ### Visual Architecture Diagrams
 
 #### Bronze Layer - File Ingestion Pipeline
-![Bronze Layer Workflow](docs/diagrams/workflow_diagram_bronze_professional.png)
+![Bronze Layer Workflow](docs/design/images/bronze_architecture.png)
 
 The Bronze layer handles automated file discovery, processing, and archival with a 5-task pipeline.
 
 #### Silver Layer - Data Transformation Pipeline
-![Silver Layer Workflow](docs/diagrams/workflow_diagram_silver_professional.png)
+![Silver Layer Workflow](docs/design/images/silver_architecture.png)
 
 The Silver layer provides intelligent data transformation with ML/LLM field mapping and a comprehensive rules engine.
 
-> 📁 **All diagrams are available in**: [`docs/diagrams/`](docs/diagrams/)
+> 📁 **All diagrams are available in**: [`docs/design/images/`](docs/design/images/)
 
 ---
 
@@ -530,11 +530,11 @@ file_processing_pipeline/
 ├── undeploy.sh                         # Complete removal script
 │
 ├── sample_data/                        # Example CSV and Excel files
-│   ├── aetna_dental-claims-20240301.csv
-│   ├── anthem_bluecross-claims-20240115.csv
-│   ├── cigna_healthcare-claims-20240215.xlsx
-│   ├── kaiser_permanente-claims-20240315.xlsx
-│   └── unitedhealth-claims-20240201.csv
+│   ├── provider_a_dental-claims-20240301.csv
+│   ├── provider_b_medical-claims-20240115.csv
+│   ├── provider_c_medical-claims-20240215.xlsx
+│   ├── provider_d_medical-claims-20240315.xlsx
+│   └── provider_e_pharmacy-claims-20240201.csv
 │
 ├── bronze/                             # 🥉 Bronze Layer (Raw Ingestion)
 │   ├── README.md                       # Bronze documentation
@@ -1068,8 +1068,10 @@ All documentation is organized in the `docs/` folder. Start here:
 - **[Documentation Index](DOCUMENTATION_INDEX.md)** - Complete guide to all documentation
 
 ### 🏗️ Architecture & Design
-- **[System Architecture](docs/architecture/ARCHITECTURE.md)** - Detailed system design
-- **[Architecture Diagrams](docs/diagrams/)** - Visual representations
+- **[System Architecture](docs/design/ARCHITECTURE.md)** - Complete architecture reference
+- **[System Design](docs/design/SYSTEM_DESIGN.md)** - High-level design overview
+- **[Technical Specification](docs/design/TECHNICAL_SPECIFICATION.md)** - Detailed technical specs
+- **[Architecture Diagrams](docs/design/images/)** - Visual representations
 - **[Project Structure Analysis](docs/PROJECT_STRUCTURE_ANALYSIS.md)** - Organization details
 
 ### 🚀 Deployment & Setup
@@ -1493,7 +1495,7 @@ Contributions are welcome! Please:
 4. **Explore**: Open the Streamlit apps and experiment
 
 ### For Developers
-1. **Architecture**: Review [System Architecture](docs/architecture/ARCHITECTURE.md)
+1. **Architecture**: Review [System Architecture](docs/design/ARCHITECTURE.md)
 2. **Code Structure**: Check [Project Structure Analysis](docs/PROJECT_STRUCTURE_ANALYSIS.md)
 3. **Bronze Layer**: Deep dive into [Bronze README](bronze/README.md)
 4. **Silver Layer**: Understand [Silver README](silver/README.md)

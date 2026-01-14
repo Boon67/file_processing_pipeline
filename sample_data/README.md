@@ -60,11 +60,11 @@ SELECT * FROM v_transformation_status_summary;
 ```
 sample_data/
 ├── claims_data/          # 5 healthcare claims files (~1 MB total)
-│   ├── aetna_dental-claims-20240301.csv (192 KB, 875 records)
-│   ├── anthem_bluecross-claims-20240115.csv (280 KB, 1,129 records)
-│   ├── cigna_healthcare-claims-20240215.xlsx (223 KB, ~780 records)
-│   ├── kaiser_permanente-claims-20240315.xlsx (170 KB, ~438 records)
-│   ├── unitedhealth-claims-20240201.csv (176 KB, 813 records)
+│   ├── provider_a_dental-claims-20240301.csv (192 KB, 875 records)
+│   ├── provider_b_medical-claims-20240115.csv (280 KB, 1,129 records)
+│   ├── provider_c_medical-claims-20240215.xlsx (223 KB, ~780 records)
+│   ├── provider_d_medical-claims-20240315.xlsx (170 KB, ~438 records)
+│   ├── provider_e_pharmacy-claims-20240201.csv (176 KB, 813 records)
 │   └── README.md
 ├── config/               # 5 Silver configuration files (~33 KB total)
 │   ├── silver_target_schemas.csv (4.2 KB, 56 columns)
@@ -99,30 +99,30 @@ sample_data/
 
 ### Bronze Layer Sample Data (Healthcare Claims)
 
-#### 1. **Aetna Dental Claims** (`claims_data/aetna_dental-claims-20240301.csv`)
+#### 1. **Provider A - Dental Claims** (`claims_data/provider_a_dental-claims-20240301.csv`)
 - **Type**: Dental claims
 - **Records**: 875 claims
 - **Format**: CSV with custom date format (MM-DD-YYYY)
 - **Key Fields**: Patient demographics, CDT procedure codes, dentist info, financial details
 
-#### 2. **Anthem BlueCross Claims** (`claims_data/anthem_bluecross-claims-20240115.csv`)
+#### 2. **Provider B - Medical Claims** (`claims_data/provider_b_medical-claims-20240115.csv`)
 - **Type**: Medical claims
 - **Records**: 1,129 claims
 - **Format**: CSV with ISO date format (YYYY-MM-DD)
 - **Key Fields**: Member demographics, ICD-10 codes, CPT codes, provider info, plan types
 
-#### 3. **UnitedHealth Pharmacy Claims** (`claims_data/unitedhealth-claims-20240201.csv`)
+#### 3. **Provider E - Pharmacy Claims** (`claims_data/provider_e_pharmacy-claims-20240201.csv`)
 - **Type**: Pharmacy/prescription claims
 - **Records**: 813 claims
 - **Format**: CSV with slash date format (MM/DD/YYYY)
 - **Key Fields**: Patient demographics, drug names, pharmacy info, financial details
 
-#### 4. **Cigna Healthcare Claims** (`claims_data/cigna_healthcare-claims-20240215.xlsx`)
+#### 4. **Provider C - Medical Claims** (`claims_data/provider_c_medical-claims-20240215.xlsx`)
 - **Type**: Medical claims
 - **Format**: Excel (.xlsx)
 - **Records**: ~780 claims
 
-#### 5. **Kaiser Permanente Claims** (`claims_data/kaiser_permanente-claims-20240315.xlsx`)
+#### 5. **Provider D - Medical Claims** (`claims_data/provider_d_medical-claims-20240315.xlsx`)
 - **Type**: Medical claims
 - **Format**: Excel (.xlsx)
 - **Records**: ~438 claims
@@ -144,9 +144,9 @@ Defines 4 standardized target tables:
 #### 2. **Field Mappings** (`config/silver_field_mappings.csv`)
 
 73 field mappings covering:
-- Aetna Dental: 23 mappings
-- Anthem BlueCross: 29 mappings
-- UnitedHealth: 21 mappings
+- Provider A (Dental): 23 mappings
+- Provider B (Medical): 29 mappings
+- Provider E (Pharmacy): 21 mappings
 
 Features:
 - Date format conversions
@@ -304,8 +304,8 @@ Show stakeholders the pipeline capabilities.
 
 ### Volume
 - **Total Records**: ~4,035 claims across 5 files
-- **Date Range**: January 2023 - March 2024
-- **Providers**: 5 major healthcare insurers
+- **Date Range**: January 2024 - March 2024
+- **Providers**: 5 generic healthcare providers (A-E)
 - **Claim Types**: Medical, Dental, Pharmacy
 
 ### Data Quality

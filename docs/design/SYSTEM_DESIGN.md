@@ -67,7 +67,7 @@ Automate the ingestion, validation, transformation, and standardization of heter
 
 ### High-Level Architecture
 
-![High-Level Architecture](architecture_overview.png)
+![High-Level Architecture](images/architecture_overview.png)
 
 *Figure 1: Snowflake File Processing Pipeline - High-Level Architecture*
 
@@ -355,7 +355,7 @@ LANGUAGE PYTHON
 
 ## Data Flow
 
-![Data Flow Diagrams](data_flow_diagram.png)
+![Data Flow Diagrams](images/data_flow_diagram.png)
 
 *Figure 2: Bronze and Silver Layer Data Flow*
 
@@ -414,7 +414,7 @@ LANGUAGE PYTHON
 
 ## Security Design
 
-![Security & RBAC](security_rbac_diagram.png)
+![Security & RBAC](images/security_rbac_diagram.png)
 
 *Figure 3: Security Architecture and Role-Based Access Control*
 
@@ -538,7 +538,7 @@ DB_INGEST_PIPELINE_READONLY (Read Only)
 
 ### CI/CD Integration
 
-![CI/CD Pipeline](deployment_pipeline_diagram.png)
+![CI/CD Pipeline](images/deployment_pipeline_diagram.png)
 
 *Figure 4: CI/CD Deployment Pipeline*
 

@@ -197,7 +197,7 @@ cat deploy_silver.log
 
 - **Main README**: [README.md](README.md) - Complete documentation
 - **User Guide**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - Detailed usage guide
-- **Architecture**: [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)
+- **Architecture**: [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)
 - **Bronze Layer**: [bronze/README.md](bronze/README.md)
 - **Silver Layer**: [silver/README.md](silver/README.md)
 - **Deployment Verification**: [silver/DEPLOYMENT_VERIFICATION.md](silver/DEPLOYMENT_VERIFICATION.md)

@@ -427,7 +427,7 @@ LIMIT 100;
 
 -- Filter by source file
 SELECT * FROM DB_INGEST_PIPELINE.SILVER.CLAIMS
-WHERE SOURCE_FILE_NAME = 'aetna_dental-claims-20240301.csv';
+WHERE SOURCE_FILE_NAME = 'provider_a_dental-claims-20240301.csv';
 ```
 
 #### 6. Data Quality Metrics

@@ -4,6 +4,15 @@
 
 The Snowflake File Processing Pipeline is a production-ready data pipeline built entirely on Snowflake native features, implementing a medallion architecture (Bronze → Silver → Gold) for data processing and transformation.
 
+## Quick Links
+
+- **[High-Level Design](SYSTEM_DESIGN.md)** - Executive overview with diagrams
+- **[Technical Specification](TECHNICAL_SPECIFICATION.md)** - Detailed technical reference
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Operations and deployment procedures
+- **[Visual Diagrams](images/)** - All architecture diagrams
+
+---
+
 ## Architecture Principles
 
 ### 1. Cloud-Native Design
@@ -21,9 +30,25 @@ The Snowflake File Processing Pipeline is a production-ready data pipeline built
 - **Principle of Least Privilege**: Each role has minimal required permissions
 - **Audit Trail**: Complete tracking of all operations
 
-## System Components
+---
 
-### Bronze Layer Architecture
+## High-Level Architecture
+
+![High-Level Architecture](images/architecture_overview.png)
+
+*Figure 1: Snowflake File Processing Pipeline - High-Level Architecture*
+
+---
+
+## Bronze Layer Architecture
+
+### Visual Overview
+
+![Bronze Layer Architecture](images/bronze_architecture.png)
+
+*Figure 2: Bronze Layer - Raw Data Ingestion*
+
+### ASCII Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -55,7 +80,7 @@ The Snowflake File Processing Pipeline is a production-ready data pipeline built
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### Key Components
+### Key Components
 
 **Stages (6)**
 1. `@SRC` - Landing zone for incoming files
@@ -82,7 +107,17 @@ The Snowflake File Processing Pipeline is a production-ready data pipeline built
 4. `move_failed_files_task` - Moves FAILED files to @ERROR
 5. `archive_old_files_task` - Archives files > 30 days (daily at 2 AM)
 
-### Silver Layer Architecture
+---
+
+## Silver Layer Architecture
+
+### Visual Overview
+
+![Silver Layer Architecture](images/silver_architecture.png)
+
+*Figure 3: Silver Layer - Clean & Standardized Data*
+
+### ASCII Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -130,7 +165,7 @@ The Snowflake File Processing Pipeline is a production-ready data pipeline built
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### Key Components
+### Key Components
 
 **Stages (3)**
 1. `@SILVER_STAGE` - Intermediate transformation files
@@ -161,9 +196,15 @@ The Snowflake File Processing Pipeline is a production-ready data pipeline built
 5. `silver_publish_task` - Publishes to Silver tables
 6. `silver_quarantine_task` - Handles failed records
 
+---
+
 ## Data Flow
 
 ### End-to-End Processing
+
+![Data Flow Diagram](images/data_flow_diagram.png)
+
+*Figure 4: End-to-End Data Flow*
 
 ```
 1. FILE UPLOAD
@@ -221,7 +262,15 @@ silver_transformation_task (applies mappings & rules)
 silver_publish_task (publishes to Silver)
 ```
 
+---
+
 ## Security Architecture
+
+### Visual Overview
+
+![Security & RBAC](images/security_rbac_diagram.png)
+
+*Figure 5: Security Architecture and Role-Based Access Control*
 
 ### Role Hierarchy
 
@@ -275,6 +324,34 @@ silver_publish_task (publishes to Silver)
 - USAGE on Streamlit apps
 - Future grants on new tables (SELECT only)
 
+---
+
+## Deployment Architecture
+
+![CI/CD Pipeline](images/deployment_pipeline_diagram.png)
+
+*Figure 6: CI/CD Deployment Pipeline*
+
+### Deployment Components
+
+**Scripts**
+- `deploy.sh` - Master deployment script
+- `deploy_bronze.sh` - Bronze layer deployment
+- `deploy_silver.sh` - Silver layer deployment
+- `undeploy.sh` - Complete teardown
+
+**Configuration**
+- `default.config` - Default settings
+- `custom.config` - User overrides
+- Environment detection (macOS, Linux, Windows)
+
+**Platform Support**
+- macOS (native bash)
+- Linux (native bash)
+- Windows (Git Bash, WSL, Cygwin)
+
+---
+
 ## Scalability Considerations
 
 ### Compute Scaling
@@ -294,6 +371,8 @@ silver_publish_task (publishes to Silver)
 - **Event-Driven**: Processing tasks triggered by predecessors
 - **Parallel Execution**: Multiple tasks can run simultaneously
 - **Error Handling**: Failed tasks don't block others
+
+---
 
 ## Monitoring & Observability
 
@@ -322,6 +401,8 @@ silver_publish_task (publishes to Silver)
 - `quarantine_records` - Failed validation records
 - `processing_watermarks` - Incremental processing state
 
+---
+
 ## Performance Optimization
 
 ### Best Practices
@@ -346,6 +427,8 @@ silver_publish_task (publishes to Silver)
    - Use time-travel for recovery (not long-term storage)
    - Implement data retention policies
 
+---
+
 ## Disaster Recovery
 
 ### Backup Strategy
@@ -365,7 +448,31 @@ silver_publish_task (publishes to Silver)
 1. **File Loss**: Re-upload from source or restore from archive
 2. **Table Corruption**: Use Time Travel to restore
 3. **Configuration Loss**: Redeploy from git repository
-4. **Complete Failure**: Run undeploy.sh then deploy.sh
+4. **Complete Failure**: Run `undeploy.sh` then `deploy.sh`
+
+---
+
+## Technology Stack
+
+### Core Technologies
+- **Platform**: Snowflake (Native)
+- **Language**: SQL, Python 3.11+
+- **Framework**: Snowpark Python
+- **UI**: Streamlit 1.51.0+
+- **CLI**: Snowflake CLI (`snow`)
+
+### Python Libraries
+- `snowflake-snowpark-python` - Snowpark API
+- `pandas` - Data manipulation
+- `openpyxl` - Excel file handling
+- `scikit-learn` - ML pattern matching (Silver)
+
+### Deployment
+- Shell scripts (`bash`)
+- Configuration files (`.config`)
+- YAML (Python environments, Snowflake CLI)
+
+---
 
 ## Future Enhancements
 
@@ -382,27 +489,16 @@ silver_publish_task (publishes to Silver)
 - Advanced data quality rules
 - Integration with external BI tools
 
-## Technology Stack
-
-### Core Technologies
-- **Platform**: Snowflake (Native)
-- **Language**: SQL, Python 3.11
-- **Framework**: Snowpark Python
-- **UI**: Streamlit 1.51.0
-- **CLI**: Snowflake CLI (`snow`)
-
-### Python Libraries
-- `snowflake-snowpark-python` - Snowpark API
-- `pandas` - Data manipulation
-- `openpyxl` - Excel file handling
-- `scikit-learn` - ML pattern matching (Silver)
-
-### Deployment
-- Shell scripts (`bash`)
-- Configuration files (`.config`)
-- YAML (Python environments, Snowflake CLI)
+---
 
 ## References
+
+### Project Documentation
+- [System Design](SYSTEM_DESIGN.md) - High-level design overview
+- [Technical Specification](TECHNICAL_SPECIFICATION.md) - Detailed technical reference
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Operations manual
+- [User Guide](../USER_GUIDE.md) - End-user documentation
+- [Documentation Index](../../DOCUMENTATION_INDEX.md) - All documentation
 
 ### Snowflake Documentation
 - [Tasks](https://docs.snowflake.com/en/user-guide/tasks-intro)
@@ -418,7 +514,6 @@ silver_publish_task (publishes to Silver)
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: December 24, 2025
-**Status**: Production Ready
-
+**Document Version**: 3.0  
+**Last Updated**: January 14, 2026  
+**Status**: ✅ Production Ready

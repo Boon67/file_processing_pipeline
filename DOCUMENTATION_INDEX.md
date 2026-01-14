@@ -14,14 +14,26 @@ Complete guide to all documentation in the Snowflake File Processing Pipeline pr
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| **[docs/design/README.md](docs/design/README.md)** | Design documentation overview and navigation | All |
+| **[docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)** | Complete architecture reference with visual and ASCII diagrams | All technical roles |
 | **[docs/design/SYSTEM_DESIGN.md](docs/design/SYSTEM_DESIGN.md)** | Comprehensive system design document | Architects, Management |
 | **[docs/design/TECHNICAL_SPECIFICATION.md](docs/design/TECHNICAL_SPECIFICATION.md)** | Detailed technical specifications | Developers, Engineers |
 | **[docs/design/DEPLOYMENT_GUIDE.md](docs/design/DEPLOYMENT_GUIDE.md)** | Complete deployment guide | DevOps, Administrators |
-| **[docs/design/README.md](docs/design/README.md)** | Design documentation overview | All |
-| **[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)** | System architecture and design decisions | Technical |
-| **[docs/diagrams/README.md](docs/diagrams/README.md)** | Visual architecture diagrams and workflows | All |
-| **[docs/diagrams/workflow_diagram_bronze_professional.png](docs/diagrams/workflow_diagram_bronze_professional.png)** | Bronze layer workflow diagram | All |
-| **[docs/diagrams/workflow_diagram_silver_professional.png](docs/diagrams/workflow_diagram_silver_professional.png)** | Silver layer workflow diagram | All |
+
+### Architecture Diagrams
+
+All diagrams are located in `docs/design/images/`:
+
+| Diagram | Description |
+|---------|-------------|
+| **[architecture_overview.png](docs/design/images/architecture_overview.png)** | High-level system architecture |
+| **[data_flow_diagram.png](docs/design/images/data_flow_diagram.png)** | End-to-end data flow |
+| **[security_rbac_diagram.png](docs/design/images/security_rbac_diagram.png)** | Security and RBAC model |
+| **[deployment_pipeline_diagram.png](docs/design/images/deployment_pipeline_diagram.png)** | CI/CD deployment pipeline |
+| **[bronze_architecture.png](docs/design/images/bronze_architecture.png)** | Bronze layer detailed view |
+| **[silver_architecture.png](docs/design/images/silver_architecture.png)** | Silver layer detailed view |
+| **[overall_data_flow.png](docs/design/images/overall_data_flow.png)** | Complete data flow |
+| **[project_structure.png](docs/design/images/project_structure.png)** | Project file structure |
 
 ## 📖 User Guides
 
@@ -80,17 +92,18 @@ Complete guide to all documentation in the Snowflake File Processing Pipeline pr
 **New User / Evaluator:**
 1. [README.md](README.md) - Overview
 2. [QUICK_START.md](QUICK_START.md) - Get started
-3. [docs/diagrams/README.md](docs/diagrams/README.md) - Visual architecture
+3. [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md) - Visual architecture
 
 **Deployer / Administrator:**
 1. [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Deployment steps
-2. [silver/DEPLOYMENT_VERIFICATION.md](silver/DEPLOYMENT_VERIFICATION.md) - Verification
-3. [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - Operations guide
+2. [docs/design/DEPLOYMENT_GUIDE.md](docs/design/DEPLOYMENT_GUIDE.md) - Deployment guide
+3. [silver/DEPLOYMENT_VERIFICATION.md](silver/DEPLOYMENT_VERIFICATION.md) - Verification
 
 **Developer / Data Engineer:**
-1. [docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) - Architecture
-2. [bronze/README.md](bronze/README.md) - Bronze implementation
-3. [silver/README.md](silver/README.md) - Silver implementation
+1. [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md) - Architecture
+2. [docs/design/TECHNICAL_SPECIFICATION.md](docs/design/TECHNICAL_SPECIFICATION.md) - Technical specs
+3. [bronze/README.md](bronze/README.md) - Bronze implementation
+4. [silver/README.md](silver/README.md) - Silver implementation
 
 **End User / Analyst:**
 1. [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - User guide
@@ -187,7 +200,10 @@ Complete guide to all documentation in the Snowflake File Processing Pipeline pr
 
 ## 📅 Last Updated
 
-This documentation index was last updated: January 5, 2026
+This documentation index was last updated: January 14, 2026
 
 For the most current information, always refer to the individual documentation files.
 
+---
+
+**Note**: All architecture diagrams and design documentation have been consolidated into `docs/design/` for easier navigation.

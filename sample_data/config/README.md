@@ -29,9 +29,9 @@ This folder contains pre-configured CSV files that define the Silver layer metad
 **Records**: 73 field mappings  
 
 **Coverage**:
-- Aetna Dental: 23 mappings
-- Anthem BlueCross: 29 mappings
-- UnitedHealth: 21 mappings
+- Provider A (Dental): 23 mappings
+- Provider B (Medical): 29 mappings
+- Provider E (Pharmacy): 21 mappings
 
 **Columns**:
 - `source_table` - Source table in Bronze (e.g., RAW_DATA_TABLE)
@@ -368,9 +368,9 @@ Target Tables: 4
 - CLAIM_SUMMARY (9 columns)
 
 Field Mappings: 73
-- Aetna Dental: 23 mappings
-- Anthem BlueCross: 29 mappings
-- UnitedHealth: 21 mappings
+- Provider A (Dental): 23 mappings
+- Provider B (Medical): 29 mappings
+- Provider E (Pharmacy): 21 mappings
 
 Transformation Rules: 47
 - Data Quality: 18 rules

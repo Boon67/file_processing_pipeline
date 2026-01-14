@@ -4,8 +4,8 @@ This folder contains sample healthcare claims files from five different provider
 
 ## 📁 Files
 
-### 1. Aetna Dental Claims
-**File**: `aetna_dental-claims-20240301.csv`  
+### 1. Provider A - Dental Claims
+**File**: `provider_a_dental-claims-20240301.csv`  
 **Records**: 875 claims  
 **Type**: Dental claims  
 **Format**: CSV  
@@ -19,8 +19,8 @@ This folder contains sample healthcare claims files from five different provider
 
 ---
 
-### 2. Anthem BlueCross Claims
-**File**: `anthem_bluecross-claims-20240115.csv`  
+### 2. Provider B - Medical Claims
+**File**: `provider_b_medical-claims-20240115.csv`  
 **Records**: 1,129 claims  
 **Type**: Medical claims  
 **Format**: CSV  
@@ -36,21 +36,21 @@ This folder contains sample healthcare claims files from five different provider
 
 ---
 
-### 3. Cigna Healthcare Claims
-**File**: `cigna_healthcare-claims-20240215.xlsx`  
+### 3. Provider C - Medical Claims
+**File**: `provider_c_medical-claims-20240215.xlsx`  
 **Records**: ~780 claims  
 **Type**: Medical claims  
 **Format**: Excel (.xlsx)  
 
 **Key Fields**:
-- Similar structure to Anthem BlueCross
+- Similar structure to Provider B
 - Medical claims with ICD-10 and CPT codes
 - Provider and financial information
 
 ---
 
-### 4. Kaiser Permanente Claims
-**File**: `kaiser_permanente-claims-20240315.xlsx`  
+### 4. Provider D - Medical Claims
+**File**: `provider_d_medical-claims-20240315.xlsx`  
 **Records**: ~438 claims  
 **Type**: Medical claims  
 **Format**: Excel (.xlsx)  
@@ -62,8 +62,8 @@ This folder contains sample healthcare claims files from five different provider
 
 ---
 
-### 5. UnitedHealth Pharmacy Claims
-**File**: `unitedhealth-claims-20240201.csv`  
+### 5. Provider E - Pharmacy Claims
+**File**: `provider_e_pharmacy-claims-20240201.csv`  
 **Records**: 813 claims  
 **Type**: Pharmacy/prescription claims  
 **Format**: CSV  
@@ -82,11 +82,11 @@ This folder contains sample healthcare claims files from five different provider
 
 | Provider | File Type | Records | Claim Type | Date Format |
 |----------|-----------|---------|------------|-------------|
-| Aetna | CSV | 875 | Dental | MM-DD-YYYY |
-| Anthem | CSV | 1,129 | Medical | YYYY-MM-DD |
-| Cigna | Excel | ~780 | Medical | Various |
-| Kaiser | Excel | ~438 | Medical | Various |
-| UnitedHealth | CSV | 813 | Pharmacy | MM/DD/YYYY |
+| Provider A | CSV | 875 | Dental | MM-DD-YYYY |
+| Provider B | CSV | 1,129 | Medical | YYYY-MM-DD |
+| Provider C | Excel | ~780 | Medical | Various |
+| Provider D | Excel | ~438 | Medical | Various |
+| Provider E | CSV | 813 | Pharmacy | MM/DD/YYYY |
 | **Total** | - | **~4,035** | Mixed | Mixed |
 
 ---
@@ -113,7 +113,7 @@ snow sql -q "LIST @db_ingest_pipeline.BRONZE.SRC;"
 # Manually trigger file discovery
 snow sql -q "EXECUTE TASK db_ingest_pipeline.BRONZE.discover_files_task;"
 
-# Or wait for scheduled task execution (every 5 minutes)
+# Or wait for scheduled task execution (every 60 minutes by default)
 ```
 
 ### Monitor in Bronze Streamlit App
@@ -136,9 +136,9 @@ These files are designed to test various data pipeline capabilities:
 - ✅ Different field naming conventions
 
 ### Data Types
-- ✅ Medical claims (Anthem, Cigna, Kaiser)
-- ✅ Dental claims (Aetna)
-- ✅ Pharmacy claims (UnitedHealth)
+- ✅ Medical claims (Providers B, C, D)
+- ✅ Dental claims (Provider A)
+- ✅ Pharmacy claims (Provider E)
 
 ### Data Quality Challenges
 - ✅ Missing values
@@ -160,6 +160,7 @@ These files are designed to test various data pipeline capabilities:
 - **No PHI**: Contains no real patient or provider information
 - **Safe for Development**: Can be used freely in development and test environments
 - **Realistic Structure**: Mimics real-world healthcare claims data structure
+- **Generic Names**: Provider names are generic (Provider A, B, C, etc.) and do not represent any actual companies
 
 ---
 
@@ -174,11 +175,11 @@ Common Fields (all providers):
 - Dates (service, submission, processing)
 
 Provider-Specific Fields:
-- Aetna: CDT codes (dental procedures)
-- Anthem: ICD-10 + CPT codes (medical)
-- UnitedHealth: Drug names + NDC codes (pharmacy)
-- Cigna: Plan types (PPO, HMO, EPO)
-- Kaiser: Integrated care identifiers
+- Provider A: CDT codes (dental procedures)
+- Provider B: ICD-10 + CPT codes (medical)
+- Provider E: Drug names + NDC codes (pharmacy)
+- Provider C: Plan types (PPO, HMO, EPO)
+- Provider D: Integrated care identifiers
 ```
 
 ### Data Quality Assessment
@@ -220,11 +221,11 @@ Silver Layer Testing:
 ```
 Provider          Records  Percentage  Avg Amount
 ─────────────────────────────────────────────────
-Anthem BlueCross  1,129    28.0%       $2,450
-Aetna Dental        875    21.7%       $  385
-UnitedHealth        813    20.1%       $  125
-Cigna Healthcare    780    19.3%       $2,100
-Kaiser Permanente   438    10.9%       $1,850
+Provider B        1,129    28.0%       $2,450
+Provider A          875    21.7%       $  385
+Provider E          813    20.1%       $  125
+Provider C          780    19.3%       $2,100
+Provider D          438    10.9%       $1,850
 ─────────────────────────────────────────────────
 Total             4,035   100.0%       $1,582
 ```
@@ -233,11 +234,11 @@ Total             4,035   100.0%       $1,582
 ```
 Provider          Earliest     Latest      Span
 ────────────────────────────────────────────────
-Anthem            2024-01-15   2024-01-15  1 day
-UnitedHealth      2024-02-01   2024-02-01  1 day
-Cigna             2024-02-15   2024-02-15  1 day
-Aetna             2024-03-01   2024-03-01  1 day
-Kaiser            2024-03-15   2024-03-15  1 day
+Provider B        2024-01-15   2024-01-15  1 day
+Provider E        2024-02-01   2024-02-01  1 day
+Provider C        2024-02-15   2024-02-15  1 day
+Provider A        2024-03-01   2024-03-01  1 day
+Provider D        2024-03-15   2024-03-15  1 day
 ────────────────────────────────────────────────
 Overall           2024-01-15   2024-03-15  60 days
 ```
@@ -294,12 +295,13 @@ Total       5    1,041 KB     208 KB    170 KB    280 KB
 - ✅ Safe for development and testing
 - ✅ Can be shared publicly
 - ✅ HIPAA compliant (no real data)
+- ✅ No actual company names used
 
 ## 📚 Related Documentation
 
 ### Internal
 - [Sample Data Main README](../README.md)
-- [Quick Start Guide](../QUICK_START.md)
+- [Quick Start Guide](../../QUICK_START.md)
 - [Config Files README](../config/README.md)
 - [Bronze Layer README](../../bronze/README.md)
 
@@ -311,12 +313,12 @@ Total       5    1,041 KB     208 KB    170 KB    280 KB
 
 ---
 
-**Last Updated**: January 2, 2026  
+**Last Updated**: January 14, 2026  
 **Total Records**: ~4,035 claims  
 **Total Size**: 1,041 KB  
-**Providers**: 5 (Aetna, Anthem, Cigna, Kaiser, UnitedHealth)  
+**Providers**: 5 (Provider A-E, generic names only)  
 **Status**: ✅ Ready for ingestion  
-**Data Type**: Synthetic (no real PHI)
+**Data Type**: Synthetic (no real PHI, no actual company names)
 
 
 

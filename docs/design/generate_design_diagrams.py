@@ -165,9 +165,9 @@ def create_high_level_architecture():
             bbox=dict(boxstyle='round', facecolor=colors['readonly'], alpha=0.7))
     
     plt.tight_layout()
-    plt.savefig('docs/design/architecture_overview.png', dpi=300, bbox_inches='tight', 
+    plt.savefig('docs/design/images/architecture_overview.png', dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
-    print("✓ Generated: architecture_overview.png")
+    print("✓ Generated: images/architecture_overview.png")
     plt.close()
 
 def create_data_flow_diagram():
@@ -285,9 +285,9 @@ def create_data_flow_diagram():
     ax2.text(9.5, 5, '✓', fontsize=20)
     
     plt.tight_layout()
-    plt.savefig('docs/design/data_flow_diagram.png', dpi=300, bbox_inches='tight', 
+    plt.savefig('docs/design/images/data_flow_diagram.png', dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
-    print("✓ Generated: data_flow_diagram.png")
+    print("✓ Generated: images/data_flow_diagram.png")
     plt.close()
 
 def create_security_diagram():
@@ -400,9 +400,9 @@ def create_security_diagram():
                     bbox=dict(boxstyle='round', facecolor=color, alpha=0.6))
     
     plt.tight_layout()
-    plt.savefig('docs/design/security_rbac_diagram.png', dpi=300, bbox_inches='tight', 
+    plt.savefig('docs/design/images/security_rbac_diagram.png', dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
-    print("✓ Generated: security_rbac_diagram.png")
+    print("✓ Generated: images/security_rbac_diagram.png")
     plt.close()
 
 def create_deployment_pipeline_diagram():
@@ -469,9 +469,9 @@ def create_deployment_pipeline_diagram():
     ax.text(8.5, legend_y, '■ Approval', fontsize=8, color='#F44336')
     
     plt.tight_layout()
-    plt.savefig('docs/design/deployment_pipeline_diagram.png', dpi=300, bbox_inches='tight', 
+    plt.savefig('docs/design/images/deployment_pipeline_diagram.png', dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
-    print("✓ Generated: deployment_pipeline_diagram.png")
+    print("✓ Generated: images/deployment_pipeline_diagram.png")
     plt.close()
 
 def main():

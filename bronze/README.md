@@ -1084,7 +1084,7 @@ Enable business users to upload files via Streamlit UI.
 - [Main Project README](../README.md) - Complete project overview
 - [Silver Layer README](../silver/README.md) - Transformation layer
 - [Sample Data Guide](../sample_data/README.md) - Test data
-- [Architecture Docs](../docs/architecture/ARCHITECTURE.md) - System design
+- [Architecture Docs](../docs/design/ARCHITECTURE.md) - System design
 
 ### External Resources
 - [Snowflake Tasks Documentation](https://docs.snowflake.com/en/user-guide/tasks-intro)
