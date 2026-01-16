@@ -1076,11 +1076,34 @@ if page == "🗺️ Field Mapper":
         if not target_tables:
             st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
         
+        # Target table selection (outside form to enable dynamic column loading)
+        col1_pre, col2_pre = st.columns(2)
+        with col1_pre:
+            st.markdown("**Source (Bronze)**")
+        with col2_pre:
+            st.markdown("**Target (Silver)**")
+            if target_tables:
+                selected_target_table = st.selectbox("Target Table*", options=[""] + target_tables, key="manual_target_table_selector")
+            else:
+                selected_target_table = ""
+                st.warning("No target tables defined")
+        
+        # Get target columns for selected table
+        target_columns = []
+        if selected_target_table:
+            target_cols_df = execute_query(f"""
+                SELECT column_name 
+                FROM {DB_SILVER}.target_schemas 
+                WHERE table_name = '{selected_target_table}' 
+                AND active = TRUE 
+                ORDER BY column_name
+            """)
+            target_columns = target_cols_df['COLUMN_NAME'].tolist() if not target_cols_df.empty else []
+        
         with st.form("manual_mapping_form"):
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("**Source (Bronze)**")
                 if source_fields:
                     source_field = st.selectbox("Source Field*", options=[""] + source_fields, key="manual_source_field")
                 else:
@@ -1090,16 +1113,16 @@ if page == "🗺️ Field Mapper":
                 source_table = st.text_input("Source Table", value="RAW_DATA_TABLE", disabled=True)
             
             with col2:
-                st.markdown("**Target (Silver)**")
-                # Target table dropdown
-                if target_tables:
-                    target_table = st.selectbox("Target Table*", options=[""] + target_tables, key="manual_target_table")
-                else:
-                    target_table = st.text_input("Target Table* (manual entry)", key="manual_target_table_text")
+                # Show selected target table (read-only in form)
+                target_table = st.text_input("Target Table", value=selected_target_table, disabled=True, key="manual_target_table_display")
                 
-                # Target column - manual entry since we can't dynamically load columns in a form
-                target_column = st.text_input("Target Column* (manual entry)", key="manual_target_column_text", 
-                                             help="Enter the target column name. You can view available columns in the Target Table Designer.")
+                # Target column dropdown based on selected table
+                if target_columns:
+                    target_column = st.selectbox("Target Column*", options=[""] + target_columns, key="manual_target_column")
+                else:
+                    if selected_target_table:
+                        st.warning(f"No columns defined for {selected_target_table}")
+                    target_column = st.text_input("Target Column* (manual entry)", key="manual_target_column_text")
             
             transformation = st.text_input(
                 "Transformation Logic (optional)",
@@ -1110,9 +1133,11 @@ if page == "🗺️ Field Mapper":
             submitted = st.form_submit_button("Create Mapping")
             
             if submitted:
-                if not source_field or not target_table or not target_column:
+                if not source_field or not selected_target_table or not target_column:
                     st.error("Source field, target table, and target column are required")
                 else:
+                    # Use the selected target table from outside the form
+                    target_table = selected_target_table
                     # Escape single quotes in string values
                     transformation_sql = f"'{transformation.replace(chr(39), chr(39)*2)}'" if transformation else 'NULL'
                     description_sql = f"'{description.replace(chr(39), chr(39)*2)}'" if description else 'NULL'
