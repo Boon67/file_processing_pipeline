@@ -46,6 +46,7 @@ BEGIN
     CREATE OR REPLACE TEMPORARY TABLE temp_target_schemas (
         table_name VARCHAR(500),
         column_name VARCHAR(500),
+        tpa VARCHAR(500),
         data_type VARCHAR(200),
         nullable VARCHAR(10),
         default_value VARCHAR(1000),
@@ -62,13 +63,14 @@ BEGIN
         SELECT 
             UPPER(table_name) as table_name,
             UPPER(column_name) as column_name,
+            tpa as tpa,  -- Keep TPA as-is (lowercase) to match TPA_MASTER
             UPPER(data_type) as data_type,
             CASE WHEN UPPER(nullable) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as nullable,
             default_value,
             description
         FROM temp_target_schemas
     ) src
-    ON ts.table_name = src.table_name AND ts.column_name = src.column_name
+    ON ts.table_name = src.table_name AND ts.column_name = src.column_name AND ts.tpa = src.tpa
     WHEN MATCHED THEN UPDATE SET
         data_type = src.data_type,
         nullable = src.nullable,
@@ -77,9 +79,9 @@ BEGIN
         updated_timestamp = CURRENT_TIMESTAMP(),
         active = TRUE
     WHEN NOT MATCHED THEN INSERT (
-        table_name, column_name, data_type, nullable, default_value, description, active
+        table_name, column_name, tpa, data_type, nullable, default_value, description, active
     ) VALUES (
-        src.table_name, src.column_name, src.data_type, src.nullable, src.default_value, src.description, TRUE
+        src.table_name, src.column_name, src.tpa, src.data_type, src.nullable, src.default_value, src.description, TRUE
     );
     
     rows_loaded := SQLROWCOUNT;
@@ -634,12 +636,13 @@ $$;
 CREATE OR REPLACE VIEW v_target_schemas_summary AS
 SELECT 
     table_name,
+    tpa,
     COUNT(*) as column_count,
     SUM(CASE WHEN NOT nullable THEN 1 ELSE 0 END) as required_columns,
     MAX(created_timestamp) as last_modified
 FROM target_schemas
 WHERE active = TRUE
-GROUP BY table_name
+GROUP BY table_name, tpa
 ORDER BY table_name;
 
 COMMENT ON VIEW v_target_schemas_summary IS 'Summary of active target table schemas. Shows column counts, required (non-nullable) column counts, and last modification timestamp for each target table.';

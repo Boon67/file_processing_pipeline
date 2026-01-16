@@ -1,70 +1,70 @@
-source_field,target_table,target_column,transformation_logic,mapping_method,confidence_score,approved,notes
-PAT_FNAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Patient first name
-PAT_LNAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Patient last name
-PAT_BIRTH_DT,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Patient DOB
-SUB_FNAME,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Subscriber first name
-SUB_LNAME,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Subscriber last name
-SUB_BIRTH_DT,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Subscriber DOB
-GRP_NM,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Group name
-POL_EFF_DT,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Policy effective date
-CLM_NBR,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Claim number
-SVC_DT,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Service date
-PROC_DT,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Processed date
-CDT_CD,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - CDT code
-DENTIST_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist NPI
-PROD_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Product type
-CHRG_AMT,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Charge amount
-ALLOW_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Allowed amount
-DED_AMT,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Deductible amount
-COINS_AMT,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Coinsurance amount
-PAID_AMT,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Paid amount
-DENTIST_NM,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist name
-DENTIST_ADDR,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist address
-DENTIST_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist TIN
-MEMBER_FIRST_NAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Member first name
-MEMBER_LAST_NAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Member last name
-MEMBER_DOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Member DOB
-SUBSCRIBER_FIRST,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Subscriber first name
-SUBSCRIBER_LAST,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Subscriber last name
-SUBSCRIBER_DOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Subscriber DOB
-GROUP_NAME,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Group name
-POLICY_EFF_DATE,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Policy effective date
-CLAIM_NUM,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Claim number
-SERVICE_FROM,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Service from date
-PAID_DATE,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Paid date
-DIAG_1,CLAIMS,DIAGNOSIS_CODE_1,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Diagnosis 1
-DIAG_2,CLAIMS,DIAGNOSIS_CODE_2,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Diagnosis 2
-PROC_CODE,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Procedure code
-PROVIDER_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider NPI
-PLAN_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Plan type
-BILLED_CHARGES,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Billed charges
-ALLOWED_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Allowed amount
-DEDUCTIBLE,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Deductible
-COPAY,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Copay
-COINSURANCE,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Coinsurance
-PLAN_PAID,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Plan paid
-PROVIDER_NAME,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider name
-PROVIDER_ADDRESS,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider address
-PROVIDER_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider TIN
-PatientFirstName,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Patient first name
-PatientLastName,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Patient last name
-PatientDOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Patient DOB
-SubscriberFirst,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Subscriber first name
-SubscriberLast,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Subscriber last name
-SubscriberDOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Subscriber DOB
-EmployerGroup,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Employer group
-EffectiveDate,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Effective date
-ClaimID,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Claim ID
-DateFilled,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Date filled
-ProcessedDate,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Processed date
-DrugName,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Drug name (as procedure)
-PharmacyNPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy NPI
-ProductType,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Product type
-BilledAmt,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Billed amount
-CopayAmt,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Copay amount
-DeductibleAmt,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Deductible amount
-PlanPaidAmt,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Plan paid amount
-PharmacyName,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy name
-PharmacyAddress,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy address
-PharmacyTIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy TIN
-
+source_field,target_table,target_column,transformation_logic,mapping_method,confidence_score,approved,notes,tpa
+PAT_FNAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Patient first name,provider_a
+PAT_LNAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Patient last name,provider_a
+PAT_BIRTH_DT,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Patient DOB,provider_a
+SUB_FNAME,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Subscriber first name,provider_a
+SUB_LNAME,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider A - Subscriber last name,provider_a
+SUB_BIRTH_DT,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Subscriber DOB,provider_a
+GRP_NM,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Group name,provider_a
+POL_EFF_DT,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Policy effective date,provider_a
+CLM_NBR,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Claim number,provider_a
+SVC_DT,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Service date,provider_a
+PROC_DT,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM-DD-YYYY'),MANUAL,1.0,TRUE,Provider A - Processed date,provider_a
+CDT_CD,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - CDT code,provider_a
+DENTIST_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist NPI,provider_a
+PROD_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Product type,provider_a
+CHRG_AMT,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Charge amount,provider_a
+ALLOW_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Allowed amount,provider_a
+DED_AMT,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Deductible amount,provider_a
+COINS_AMT,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Coinsurance amount,provider_a
+PAID_AMT,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider A - Paid amount,provider_a
+DENTIST_NM,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist name,provider_a
+DENTIST_ADDR,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist address,provider_a
+DENTIST_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider A - Dentist TIN,provider_a
+MEMBER_FIRST_NAME,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Member first name,provider_b
+MEMBER_LAST_NAME,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Member last name,provider_b
+MEMBER_DOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Member DOB,provider_b
+SUBSCRIBER_FIRST,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Subscriber first name,provider_b
+SUBSCRIBER_LAST,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider B - Subscriber last name,provider_b
+SUBSCRIBER_DOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Subscriber DOB,provider_b
+GROUP_NAME,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Group name,provider_b
+POLICY_EFF_DATE,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Policy effective date,provider_b
+CLAIM_NUM,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Claim number,provider_b
+SERVICE_FROM,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Service from date,provider_b
+PAID_DATE,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'YYYY-MM-DD'),MANUAL,1.0,TRUE,Provider B - Paid date,provider_b
+DIAG_1,CLAIMS,DIAGNOSIS_CODE_1,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Diagnosis 1,provider_b
+DIAG_2,CLAIMS,DIAGNOSIS_CODE_2,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Diagnosis 2,provider_b
+PROC_CODE,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Procedure code,provider_b
+PROVIDER_NPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider NPI,provider_b
+PLAN_TYPE,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Plan type,provider_b
+BILLED_CHARGES,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Billed charges,provider_b
+ALLOWED_AMT,CLAIMS,ALLOWED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Allowed amount,provider_b
+DEDUCTIBLE,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Deductible,provider_b
+COPAY,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Copay,provider_b
+COINSURANCE,CLAIMS,COINSURANCE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Coinsurance,provider_b
+PLAN_PAID,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider B - Plan paid,provider_b
+PROVIDER_NAME,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider name,provider_b
+PROVIDER_ADDRESS,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider address,provider_b
+PROVIDER_TIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider B - Provider TIN,provider_b
+PatientFirstName,CLAIMS,PATIENT_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Patient first name,provider_b
+PatientLastName,CLAIMS,PATIENT_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Patient last name,provider_b
+PatientDOB,CLAIMS,PATIENT_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Patient DOB,provider_b
+SubscriberFirst,CLAIMS,SUBSCRIBER_FIRST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Subscriber first name,provider_b
+SubscriberLast,CLAIMS,SUBSCRIBER_LAST_NAME,UPPER(TRIM(source_value)),MANUAL,1.0,TRUE,Provider E - Subscriber last name,provider_b
+SubscriberDOB,CLAIMS,SUBSCRIBER_DOB,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Subscriber DOB,provider_e
+EmployerGroup,CLAIMS,EMPLOYER_GROUP,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Employer group,provider_e
+EffectiveDate,CLAIMS,POLICY_EFFECTIVE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Effective date,provider_e
+ClaimID,CLAIMS,CLAIM_ID,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Claim ID,provider_e
+DateFilled,CLAIMS,SERVICE_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Date filled,provider_e
+ProcessedDate,CLAIMS,PROCESSED_DATE,TO_DATE(source_value 'MM/DD/YYYY'),MANUAL,1.0,TRUE,Provider E - Processed date,provider_e
+DrugName,CLAIMS,PROCEDURE_CODE,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Drug name (as procedure),provider_e
+PharmacyNPI,CLAIMS,PROVIDER_NPI,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy NPI,provider_e
+ProductType,CLAIMS,PLAN_TYPE,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Product type,provider_e
+BilledAmt,CLAIMS,BILLED_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Billed amount,provider_e
+CopayAmt,CLAIMS,COPAY_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Copay amount,provider_e
+DeductibleAmt,CLAIMS,DEDUCTIBLE_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Deductible amount,provider_e
+PlanPaidAmt,CLAIMS,PLAN_PAID_AMOUNT,CAST(source_value AS NUMBER(10 2)),MANUAL,1.0,TRUE,Provider E - Plan paid amount,provider_e
+PharmacyName,CLAIMS,PROVIDER_NAME,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy name,provider_e
+PharmacyAddress,CLAIMS,PROVIDER_ADDRESS,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy address,provider_e
+PharmacyTIN,CLAIMS,PROVIDER_TIN,TRIM(source_value),MANUAL,1.0,TRUE,Provider E - Pharmacy TIN,provider_e
+,provider_e

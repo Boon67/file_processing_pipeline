@@ -1,28 +1,28 @@
-table_name,column_name,data_type,nullable,default_value,description
-claims,CLAIM_NUM,VARCHAR(100),TRUE,,Unique claim number identifier
-claims,FIRST_NAME,VARCHAR(100),TRUE,,Patient first name
-claims,LAST_NAME,VARCHAR(100),TRUE,,Patient last name
-claims,DOB,DATE,TRUE,,Patient date of birth
-claims,SUBSCRIBER_FIRST,VARCHAR(100),TRUE,,Subscriber policyholder first name
-claims,SUBSCRIBER_LAST,VARCHAR(100),TRUE,,Subscriber policyholder last name
-claims,SUBSCRIBER_DOB,DATE,TRUE,,Subscriber date of birth
-claims,GROUP_NAME,VARCHAR(200),TRUE,,Insurance group or employer name
-claims,POLICY_EFFECTIVE_DATE,DATE,TRUE,,Date when insurance policy became effective
-claims,PAID_DATE,DATE,TRUE,,Date when claim was paid
-claims,REVENUE_CD,VARCHAR(50),TRUE,,Revenue code for billing classification
-claims,PROVIDER_NPI,VARCHAR(20),TRUE,,National Provider Identifier for healthcare provider
-claims,PLAN_TYPE,VARCHAR(100),TRUE,,Type of insurance plan HMO PPO etc
-claims,BILLED_CHARGES,"NUMBER(15,2)",TRUE,,Total amount billed by provider
-claims,ALLOWED_AMT,"NUMBER(15,2)",TRUE,,Amount allowed by insurance plan
-claims,DEDUCTIBLE,"NUMBER(15,2)",TRUE,,Deductible amount applied to claim
-claims,COPAY,"NUMBER(15,2)",TRUE,,Copayment amount paid by patient
-claims,COINSURANCE,"NUMBER(15,2)",TRUE,,Coinsurance amount percentage of allowed amount
-claims,PLAN_PAID,"NUMBER(15,2)",TRUE,,Amount paid by insurance plan
-claims,CLAIM_TYPE,VARCHAR(50),TRUE,,Type of claim Medical Pharmacy Vision etc
-claims,PROVIDER_NAME,VARCHAR(200),TRUE,,Name of healthcare provider
-claims,PROVIDER_ADDRESS,VARCHAR(500),TRUE,,Physical address of healthcare provider
-claims,PROVIDER_TIN,VARCHAR(20),TRUE,,Tax Identification Number of provider
-claims,SOURCE_FILE_NAME,VARCHAR(500),TRUE,,Original source file name from Bronze layer
-claims,INGESTION_TIMESTAMP,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Timestamp when record was ingested
-claims,CREATED_AT,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Record creation timestamp in Silver layer
-claims,UPDATED_AT,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Record last update timestamp
+table_name,column_name,tpa,data_type,nullable,default_value,description
+claims,CLAIM_NUM,provider_a,VARCHAR(100),TRUE,,Unique claim number identifier
+claims,FIRST_NAME,provider_a,VARCHAR(100),TRUE,,Patient first name
+claims,LAST_NAME,provider_a,VARCHAR(100),TRUE,,Patient last name
+claims,DOB,provider_a,DATE,TRUE,,Patient date of birth
+claims,SUBSCRIBER_FIRST,provider_a,VARCHAR(100),TRUE,,Subscriber policyholder first name
+claims,SUBSCRIBER_LAST,provider_a,VARCHAR(100),TRUE,,Subscriber policyholder last name
+claims,SUBSCRIBER_DOB,provider_a,DATE,TRUE,,Subscriber date of birth
+claims,GROUP_NAME,provider_a,VARCHAR(200),TRUE,,Insurance group or employer name
+claims,POLICY_EFFECTIVE_DATE,provider_a,DATE,TRUE,,Date when insurance policy became effective
+claims,PAID_DATE,provider_a,DATE,TRUE,,Date when claim was paid
+claims,REVENUE_CD,provider_a,VARCHAR(50),TRUE,,Revenue code for billing classification
+claims,PROVIDER_NPI,provider_a,VARCHAR(20),TRUE,,National Provider Identifier for healthcare provider
+claims,PLAN_TYPE,provider_a,VARCHAR(100),TRUE,,Type of insurance plan HMO PPO etc
+claims,BILLED_CHARGES,provider_a,"NUMBER(15,2)",TRUE,,Total amount billed by provider
+claims,ALLOWED_AMT,provider_a,"NUMBER(15,2)",TRUE,,Amount allowed by insurance plan
+claims,DEDUCTIBLE,provider_a,"NUMBER(15,2)",TRUE,,Deductible amount applied to claim
+claims,COPAY,provider_a,"NUMBER(15,2)",TRUE,,Copayment amount paid by patient
+claims,COINSURANCE,provider_a,"NUMBER(15,2)",TRUE,,Coinsurance amount percentage of allowed amount
+claims,PLAN_PAID,provider_a,"NUMBER(15,2)",TRUE,,Amount paid by insurance plan
+claims,CLAIM_TYPE,provider_a,VARCHAR(50),TRUE,,Type of claim Medical Pharmacy Vision etc
+claims,PROVIDER_NAME,provider_a,VARCHAR(200),TRUE,,Name of healthcare provider
+claims,PROVIDER_ADDRESS,provider_a,VARCHAR(500),TRUE,,Physical address of healthcare provider
+claims,PROVIDER_TIN,provider_a,VARCHAR(20),TRUE,,Tax Identification Number of provider
+claims,SOURCE_FILE_NAME,provider_a,VARCHAR(500),TRUE,,Original source file name from Bronze layer
+claims,INGESTION_TIMESTAMP,provider_a,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Timestamp when record was ingested
+claims,CREATED_AT,provider_a,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Record creation timestamp in Silver layer
+claims,UPDATED_AT,provider_a,TIMESTAMP_NTZ,FALSE,CURRENT_TIMESTAMP(),Record last update timestamp

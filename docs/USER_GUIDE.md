@@ -108,10 +108,29 @@ The Bronze layer handles raw file ingestion from CSV and Excel files into Snowfl
 
 Upload CSV or Excel files directly through the web interface:
 
+**Step 1: Select TPA (Third Party Administrator)**
+- Choose from predefined providers (provider_a, provider_b, provider_c, provider_d, provider_e)
+- Or select "custom" to enter your own TPA name
+- The TPA determines the subfolder where files are uploaded: `@SRC/{tpa_name}/`
+- TPA value is automatically extracted and stored in the `TPA` column for downstream processing
+
+**Step 2: Upload Files**
 - Drag and drop files or click to browse
 - Multiple file upload supported
-- Files are uploaded to `@SRC` stage
+- Files are uploaded to `@SRC/{tpa_name}/` stage subfolder
 - Automatic discovery triggers on schedule or manual execution
+
+**Example Folder Structure:**
+```
+@SRC/
+├── provider_a/
+│   ├── dental-claims-20240301.csv
+│   └── medical-claims-20240315.csv
+├── provider_b/
+│   └── claims-20240115.csv
+└── provider_c/
+    └── medical-claims-20240215.xlsx
+```
 
 ![Bronze Upload Files](screenshots/bronze_upload_files.png)
 *Drag-and-drop file upload interface with "Process Files" checkbox for immediate processing*
@@ -181,12 +200,18 @@ CREATE TABLE RAW_DATA_TABLE (
 #### Upload Files via CLI
 
 ```bash
-# Upload a single file
-snow sql -q "PUT file:///path/to/claims.csv @DB_INGEST_PIPELINE.BRONZE.SRC;"
+# Upload a single file to a TPA-specific subfolder
+snow sql -q "PUT file:///path/to/claims.csv @DB_INGEST_PIPELINE.BRONZE.SRC/provider_a/;"
 
-# Upload multiple files
-snow sql -q "PUT file:///path/to/data/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC;"
+# Upload multiple files to a TPA-specific subfolder
+snow sql -q "PUT file:///path/to/data/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC/provider_a/;"
+
+# Upload to different TPA folders
+snow sql -q "PUT file:///path/to/provider_a/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC/provider_a/;"
+snow sql -q "PUT file:///path/to/provider_b/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC/provider_b/;"
 ```
+
+**Note:** The TPA value (folder name) is automatically extracted during processing and stored in the `TPA` column of the `RAW_DATA_TABLE`.
 
 #### Trigger Processing Manually
 
@@ -427,7 +452,17 @@ LIMIT 100;
 
 -- Filter by source file
 SELECT * FROM DB_INGEST_PIPELINE.SILVER.CLAIMS
-WHERE SOURCE_FILE_NAME = 'provider_a_dental-claims-20240301.csv';
+WHERE SOURCE_FILE_NAME = 'dental-claims-20240301.csv';
+
+-- Filter by TPA (provider)
+SELECT * FROM DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE
+WHERE TPA = 'provider_a';
+
+-- Count records by provider
+SELECT TPA, COUNT(*) as record_count
+FROM DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE
+GROUP BY TPA
+ORDER BY record_count DESC;
 ```
 
 #### 6. Data Quality Metrics

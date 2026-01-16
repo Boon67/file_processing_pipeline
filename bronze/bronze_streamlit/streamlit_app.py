@@ -41,6 +41,7 @@ page = st.sidebar.radio(
         "📤 Upload Files",
         "📊 Processing Status",
         "📂 File Stages",
+        "📋 Raw Data Viewer",
         "⚙️ Task Management"
     ],
     label_visibility="collapsed"
@@ -155,8 +156,8 @@ def validate_file(file):
     
     return True, "Valid"
 
-def upload_file_to_stage(session, file, stage_name):
-    """Upload file to Snowflake stage preserving original filename"""
+def upload_file_to_stage(session, file, stage_name, tpa_folder=None):
+    """Upload file to Snowflake stage preserving original filename and optional TPA folder structure"""
     try:
         # Create temporary directory to preserve original filename
         temp_dir = tempfile.mkdtemp()
@@ -166,10 +167,16 @@ def upload_file_to_stage(session, file, stage_name):
         with open(temp_file_path, 'wb') as tmp_file:
             tmp_file.write(file.getvalue())
         
+        # Construct stage path with optional TPA subfolder
+        if tpa_folder:
+            stage_path = f"@{stage_name}/{tpa_folder}"
+        else:
+            stage_path = f"@{stage_name}"
+        
         # Upload to stage (this will preserve the original filename)
         put_result = session.file.put(
             temp_file_path,
-            f"@{stage_name}",
+            stage_path,
             auto_compress=False,
             overwrite=True
         )
@@ -191,19 +198,24 @@ def upload_file_to_stage(session, file, stage_name):
         return False, f"Upload error: {str(e)}"
 
 def get_processed_files_summary(session, database_name, schema_name):
-    """Get summary of all processed files with status"""
+    """Get summary of all processed files with status and TPA"""
     try:
         query = f"""
         SELECT 
-            file_name,
-            file_type,
-            status,
-            discovered_timestamp,
-            processed_timestamp,
-            process_result,
-            error_message
-        FROM {database_name}.{schema_name}.file_processing_queue
-        ORDER BY discovered_timestamp DESC
+            fpq.file_name,
+            fpq.file_type,
+            fpq.status,
+            fpq.discovered_timestamp,
+            fpq.processed_timestamp,
+            fpq.process_result,
+            fpq.error_message,
+            COALESCE(rdt.tpa, 'N/A') as tpa
+        FROM {database_name}.{schema_name}.file_processing_queue fpq
+        LEFT JOIN (
+            SELECT DISTINCT file_name, tpa
+            FROM {database_name}.{schema_name}.RAW_DATA_TABLE
+        ) rdt ON fpq.file_name = rdt.file_name
+        ORDER BY fpq.discovered_timestamp DESC
         """
         result = session.sql(query).to_pandas()
         
@@ -346,6 +358,117 @@ def get_task_history(session, database_name, schema_name, task_name, limit=10):
         st.warning(f"Unable to load task history from local database: {str(e)}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=300)
+def get_tpa_list(_session, database_name, schema_name):
+    """Get list of active TPAs from TPA_MASTER table"""
+    try:
+        query = f"""
+        SELECT 
+            TPA_CODE,
+            TPA_NAME,
+            TPA_DESCRIPTION
+        FROM {database_name}.{schema_name}.TPA_MASTER
+        WHERE ACTIVE = TRUE
+        ORDER BY TPA_CODE
+        """
+        result = _session.sql(query).to_pandas()
+        
+        # Normalize column names: remove quotes and convert to lowercase
+        if not result.empty:
+            result.columns = result.columns.str.strip('"').str.lower()
+        
+        return result
+    except Exception as e:
+        st.error(f"Error loading TPA list: {e}")
+        # Return empty dataframe if table doesn't exist yet
+        return pd.DataFrame(columns=['tpa_code', 'tpa_name', 'tpa_description'])
+
+def get_raw_data_summary(session, database_name, schema_name):
+    """Get summary statistics of RAW_DATA_TABLE"""
+    try:
+        query = f"""
+        SELECT 
+            COUNT(*) as total_rows,
+            COUNT(DISTINCT FILE_NAME) as unique_files,
+            COUNT(DISTINCT TPA) as unique_tpas,
+            MIN(LOAD_TIMESTAMP) as earliest_load,
+            MAX(LOAD_TIMESTAMP) as latest_load
+        FROM {database_name}.{schema_name}.RAW_DATA_TABLE
+        """
+        result = session.sql(query).to_pandas()
+        
+        # Normalize column names
+        if not result.empty:
+            result.columns = result.columns.str.strip('"').str.lower()
+        
+        return result
+    except Exception as e:
+        st.error(f"Error fetching raw data summary: {e}")
+        return pd.DataFrame()
+
+def get_raw_data_by_filters(session, database_name, schema_name, tpa_filter=None, file_filter=None, limit=100, offset=0):
+    """Get raw data with filters and pagination"""
+    try:
+        where_clauses = []
+        
+        if tpa_filter:
+            tpa_list = "', '".join(tpa_filter)
+            where_clauses.append(f"TPA IN ('{tpa_list}')")
+        
+        if file_filter:
+            file_list = "', '".join(file_filter)
+            where_clauses.append(f"FILE_NAME IN ('{file_list}')")
+        
+        where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+        
+        query = f"""
+        SELECT 
+            RAW_ID,
+            FILE_NAME,
+            TPA,
+            FILE_ROW_NUMBER,
+            RAW_DATA,
+            LOAD_TIMESTAMP,
+            FILE_SIZE,
+            FILE_LAST_MODIFIED
+        FROM {database_name}.{schema_name}.RAW_DATA_TABLE
+        WHERE {where_clause}
+        ORDER BY LOAD_TIMESTAMP DESC, RAW_ID DESC
+        LIMIT {limit}
+        OFFSET {offset}
+        """
+        result = session.sql(query).to_pandas()
+        
+        # Normalize column names
+        if not result.empty:
+            result.columns = result.columns.str.strip('"').str.lower()
+        
+        return result
+    except Exception as e:
+        st.error(f"Error fetching raw data: {e}")
+        return pd.DataFrame()
+
+def get_raw_data_files_and_tpas(session, database_name, schema_name):
+    """Get distinct files and TPAs for filter options"""
+    try:
+        query = f"""
+        SELECT DISTINCT
+            FILE_NAME,
+            TPA
+        FROM {database_name}.{schema_name}.RAW_DATA_TABLE
+        ORDER BY TPA, FILE_NAME
+        """
+        result = session.sql(query).to_pandas()
+        
+        # Normalize column names
+        if not result.empty:
+            result.columns = result.columns.str.strip('"').str.lower()
+        
+        return result
+    except Exception as e:
+        st.error(f"Error fetching files and TPAs: {e}")
+        return pd.DataFrame()
+
 def main():
     # Get Snowflake session
     session = get_snowflake_session()
@@ -407,7 +530,49 @@ def main():
     # Tab 1: Upload Files
     if page == "📤 Upload Files":
         st.subheader("Upload Files")
-        st.markdown(f"**Target Stage:** `@{database}.{schema}.{src_stage}`")
+        
+        # TPA Selection
+        st.markdown("### 🏢 Select Third Party Administrator (TPA)")
+        st.info("💡 The TPA determines the subfolder where files will be uploaded. This helps organize files by provider and enables TPA-specific processing rules.")
+        
+        # Load TPA list from database
+        tpa_df = get_tpa_list(session, database, schema)
+        
+        if tpa_df.empty:
+            st.error("❌ No TPAs found in database. Please contact your administrator to add TPAs to the TPA_MASTER table.")
+            st.stop()
+        
+        # Create TPA options dictionary for display
+        tpa_options_dict = {}
+        for _, row in tpa_df.iterrows():
+            tpa_code = row['tpa_code']
+            tpa_name = row['tpa_name']
+            tpa_options_dict[f"{tpa_code} - {tpa_name}"] = tpa_code
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            selected_tpa_display = st.selectbox(
+                "Select TPA *",
+                options=list(tpa_options_dict.keys()),
+                help="Choose the Third Party Administrator for these files (required)"
+            )
+            
+            # Get the TPA code from the selected display value
+            tpa_folder = tpa_options_dict[selected_tpa_display]
+        
+        with col2:
+            st.text_input("TPA Code", value=tpa_folder, disabled=True, help="Files will be uploaded to this subfolder")
+        
+        # Show TPA description if available
+        selected_tpa_row = tpa_df[tpa_df['tpa_code'] == tpa_folder]
+        if not selected_tpa_row.empty and pd.notna(selected_tpa_row.iloc[0]['tpa_description']):
+            st.caption(f"ℹ️ {selected_tpa_row.iloc[0]['tpa_description']}")
+        
+        st.markdown("---")
+        
+        # Display target path
+        st.markdown(f"**Target Path:** `@{database}.{schema}.{src_stage}/{tpa_folder}/`")
         
         # File uploader
         uploaded_files = st.file_uploader(
@@ -466,16 +631,17 @@ def main():
                         failed_count += 1
                         continue
                     
-                    # Upload file
-                    status_placeholder.info(f"⏳ Uploading {file.name}...")
+                    # Upload file with TPA folder
+                    status_placeholder.info(f"⏳ Uploading {file.name} to {tpa_folder}/...")
                     success, message = upload_file_to_stage(
                         session,
                         file,
-                        f"{database}.{schema}.{src_stage}"
+                        f"{database}.{schema}.{src_stage}",
+                        tpa_folder=tpa_folder
                     )
                     
                     if success:
-                        status_placeholder.success(f"✅ {file.name}: {message}")
+                        status_placeholder.success(f"✅ {file.name}: {message} (TPA: {tpa_folder})")
                         success_count += 1
                     else:
                         status_placeholder.error(f"❌ {file.name}: {message}")
@@ -569,32 +735,43 @@ def main():
         
         st.markdown("---")
         
-        # Filter options
-        col1, col2, col3 = st.columns([2, 2, 1])
-        
-        with col1:
-            status_filter = st.multiselect(
-                "Filter by Status",
-                options=["SUCCESS", "FAILED", "PROCESSING", "PENDING"],
-                default=["SUCCESS", "FAILED", "PROCESSING", "PENDING"]
-            )
-        
-        with col2:
-            file_type_filter = st.multiselect(
-                "Filter by File Type",
-                options=["CSV", "EXCEL"],
-                default=["CSV", "EXCEL"]
-            )
-        
-        # Get all processed files
+        # Get all processed files first (needed for TPA filter options)
         files_df = get_processed_files_summary(session, database, schema)
         
         if not files_df.empty:
+            # Filter options
+            col1, col2, col3 = st.columns([2, 2, 2])
+            
+            with col1:
+                status_filter = st.multiselect(
+                    "Filter by Status",
+                    options=["SUCCESS", "FAILED", "PROCESSING", "PENDING"],
+                    default=["SUCCESS", "FAILED", "PROCESSING", "PENDING"]
+                )
+            
+            with col2:
+                file_type_filter = st.multiselect(
+                    "Filter by File Type",
+                    options=["CSV", "EXCEL"],
+                    default=["CSV", "EXCEL"]
+                )
+            
+            with col3:
+                # Get unique TPAs from the data
+                tpa_options = sorted(files_df['tpa'].unique().tolist())
+                tpa_filter = st.multiselect(
+                    "Filter by TPA",
+                    options=tpa_options,
+                    default=tpa_options
+                )
+            
             # Apply filters
             if status_filter:
                 files_df = files_df[files_df['status'].isin(status_filter)]
             if file_type_filter:
                 files_df = files_df[files_df['file_type'].isin(file_type_filter)]
+            if tpa_filter:
+                files_df = files_df[files_df['tpa'].isin(tpa_filter)]
             
             # Display count
             st.markdown(f"**Showing {len(files_df)} files**")
@@ -624,11 +801,18 @@ def main():
                     'file_name': 'File Name',
                     'file_type': 'Type',
                     'status': 'Status',
+                    'tpa': 'TPA',
                     'discovered_timestamp': 'Discovered',
                     'processed_timestamp': 'Processed',
                     'process_result': 'Result',
                     'error_message': 'Error'
                 })
+                
+                # Reorder columns to show TPA after Type
+                column_order = ['File Name', 'Type', 'TPA', 'Status', 'Discovered', 'Processed', 'Result', 'Error']
+                # Only include columns that exist in the dataframe
+                column_order = [col for col in column_order if col in display_df.columns]
+                display_df = display_df[column_order]
                 
                 # Display with expandable error messages
                 st.dataframe(
@@ -636,8 +820,9 @@ def main():
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "Status": st.column_config.TextColumn(width="small"),
                         "Type": st.column_config.TextColumn(width="small"),
+                        "TPA": st.column_config.TextColumn(width="small"),
+                        "Status": st.column_config.TextColumn(width="small"),
                         "Result": st.column_config.TextColumn(width="medium"),
                         "Error": st.column_config.TextColumn(width="large")
                     }
@@ -810,6 +995,187 @@ def main():
                 )
             else:
                 st.info(f"📭 No files in {selected_stage_label}")
+    
+    # Tab 4: Raw Data Viewer
+    if page == "📋 Raw Data Viewer":
+        st.subheader("Raw Data Viewer")
+        st.markdown("View the contents of the RAW_DATA_TABLE with filtering and pagination.")
+        
+        # Get summary statistics
+        summary_df = get_raw_data_summary(session, database, schema)
+        
+        if not summary_df.empty:
+            # Display summary metrics
+            col1, col2, col3, col4, col5 = st.columns(5)
+            
+            total_rows = int(summary_df['total_rows'].iloc[0]) if pd.notna(summary_df['total_rows'].iloc[0]) else 0
+            unique_files = int(summary_df['unique_files'].iloc[0]) if pd.notna(summary_df['unique_files'].iloc[0]) else 0
+            unique_tpas = int(summary_df['unique_tpas'].iloc[0]) if pd.notna(summary_df['unique_tpas'].iloc[0]) else 0
+            
+            with col1:
+                st.metric("Total Rows", f"{total_rows:,}")
+            with col2:
+                st.metric("Unique Files", unique_files)
+            with col3:
+                st.metric("Unique TPAs", unique_tpas)
+            with col4:
+                if pd.notna(summary_df['earliest_load'].iloc[0]):
+                    earliest = pd.to_datetime(summary_df['earliest_load'].iloc[0]).strftime('%Y-%m-%d')
+                    st.metric("Earliest Load", earliest)
+                else:
+                    st.metric("Earliest Load", "N/A")
+            with col5:
+                if pd.notna(summary_df['latest_load'].iloc[0]):
+                    latest = pd.to_datetime(summary_df['latest_load'].iloc[0]).strftime('%Y-%m-%d')
+                    st.metric("Latest Load", latest)
+                else:
+                    st.metric("Latest Load", "N/A")
+        
+        st.markdown("---")
+        
+        # Get files and TPAs for filter options
+        files_tpas_df = get_raw_data_files_and_tpas(session, database, schema)
+        
+        if not files_tpas_df.empty:
+            # Filter options
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                # TPA filter - single select with "All TPAs" option
+                tpa_options = sorted(files_tpas_df['tpa'].unique().tolist())
+                tpa_options_with_all = ["All TPAs"] + tpa_options
+                
+                selected_tpa = st.selectbox(
+                    "Filter by TPA",
+                    options=tpa_options_with_all,
+                    index=0,
+                    help="Select a TPA to view data from that provider"
+                )
+                
+                # Convert selection to filter list
+                if selected_tpa == "All TPAs":
+                    tpa_filter = None
+                else:
+                    tpa_filter = [selected_tpa]
+            
+            with col2:
+                # File filter (only show files for selected TPA)
+                if tpa_filter:
+                    file_options = sorted(files_tpas_df[files_tpas_df['tpa'].isin(tpa_filter)]['file_name'].unique().tolist())
+                else:
+                    file_options = sorted(files_tpas_df['file_name'].unique().tolist())
+                
+                file_filter = st.multiselect(
+                    "Filter by File",
+                    options=file_options,
+                    default=file_options[:3] if len(file_options) > 3 else file_options,
+                    help="Select one or more files to view"
+                )
+            
+            with col3:
+                # Limit/pagination
+                limit = st.selectbox(
+                    "Rows per page",
+                    options=[50, 100, 250, 500, 1000],
+                    index=1,
+                    help="Number of rows to display"
+                )
+            
+            # Refresh button
+            col1, col2 = st.columns([1, 5])
+            with col1:
+                if st.button("🔄 Refresh", use_container_width=True):
+                    st.rerun()
+            
+            st.markdown("---")
+            
+            # Get raw data with filters
+            raw_data_df = get_raw_data_by_filters(
+                session, 
+                database, 
+                schema, 
+                tpa_filter=tpa_filter if tpa_filter else None,
+                file_filter=file_filter if file_filter else None,
+                limit=limit,
+                offset=0
+            )
+            
+            if not raw_data_df.empty:
+                st.markdown(f"**Showing {len(raw_data_df)} rows** (limited to {limit} per page)")
+                
+                # Format the dataframe for display
+                display_df = raw_data_df.copy()
+                
+                # Format timestamps
+                if 'load_timestamp' in display_df.columns:
+                    display_df['load_timestamp'] = pd.to_datetime(display_df['load_timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                if 'file_last_modified' in display_df.columns:
+                    display_df['file_last_modified'] = pd.to_datetime(display_df['file_last_modified']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Format file size
+                if 'file_size' in display_df.columns:
+                    display_df['file_size_kb'] = (display_df['file_size'] / 1024).round(2)
+                
+                # Convert RAW_DATA (VARIANT) to string for display
+                if 'raw_data' in display_df.columns:
+                    display_df['raw_data'] = display_df['raw_data'].astype(str)
+                
+                # Rename columns for display
+                display_df = display_df.rename(columns={
+                    'raw_id': 'ID',
+                    'file_name': 'File Name',
+                    'tpa': 'TPA',
+                    'file_row_number': 'Row #',
+                    'raw_data': 'Data (JSON)',
+                    'load_timestamp': 'Loaded',
+                    'file_size_kb': 'File Size (KB)',
+                    'file_last_modified': 'File Modified'
+                })
+                
+                # Select columns to display
+                display_columns = ['ID', 'File Name', 'TPA', 'Row #', 'Data (JSON)', 'Loaded']
+                if 'File Size (KB)' in display_df.columns:
+                    display_columns.append('File Size (KB)')
+                
+                # Only include columns that exist
+                display_columns = [col for col in display_columns if col in display_df.columns]
+                display_df = display_df[display_columns]
+                
+                # Display data table
+                st.dataframe(
+                    display_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "ID": st.column_config.NumberColumn(width="small"),
+                        "File Name": st.column_config.TextColumn(width="medium"),
+                        "TPA": st.column_config.TextColumn(width="small"),
+                        "Row #": st.column_config.NumberColumn(width="small"),
+                        "Data (JSON)": st.column_config.TextColumn(width="large"),
+                        "Loaded": st.column_config.TextColumn(width="medium"),
+                        "File Size (KB)": st.column_config.NumberColumn(width="small", format="%.2f")
+                    },
+                    height=600
+                )
+                
+                # Download option
+                csv = raw_data_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download as CSV",
+                    data=csv,
+                    file_name=f"raw_data_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+                
+                # Show sample data expansion
+                with st.expander("🔍 View Sample Row Details"):
+                    if len(raw_data_df) > 0:
+                        sample_row = raw_data_df.iloc[0]
+                        st.json(sample_row.to_dict())
+            else:
+                st.info("No data found matching the selected filters")
+        else:
+            st.info("📭 No data in RAW_DATA_TABLE")
     
     # Tab 5: Task Management
     # Tab 4: Task Management

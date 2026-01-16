@@ -196,11 +196,13 @@ cat deploy_silver.log
 ## Documentation
 
 - **Main README**: [README.md](README.md) - Complete documentation
+- **Documentation Index**: [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) - All documentation
 - **User Guide**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - Detailed usage guide
+- **Deployment & Operations**: [docs/DEPLOYMENT_AND_OPERATIONS.md](docs/DEPLOYMENT_AND_OPERATIONS.md) - Complete deployment guide
 - **Architecture**: [docs/design/ARCHITECTURE.md](docs/design/ARCHITECTURE.md)
+- **TPA Guide**: [docs/guides/TPA_COMPLETE_GUIDE.md](docs/guides/TPA_COMPLETE_GUIDE.md) - TPA documentation
 - **Bronze Layer**: [bronze/README.md](bronze/README.md)
 - **Silver Layer**: [silver/README.md](silver/README.md)
-- **Deployment Verification**: [silver/DEPLOYMENT_VERIFICATION.md](silver/DEPLOYMENT_VERIFICATION.md)
 
 ## Support
 

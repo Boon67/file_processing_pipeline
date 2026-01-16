@@ -51,6 +51,7 @@ BEGIN
         source_table VARCHAR(500),
         target_table VARCHAR(500),
         target_column VARCHAR(500),
+        tpa VARCHAR(500),
         transformation_logic VARCHAR(5000),
         description VARCHAR(5000)
     );
@@ -67,6 +68,7 @@ BEGIN
             COALESCE(UPPER(source_table), 'RAW_DATA_TABLE') as source_table,
             UPPER(target_table) as target_table,
             UPPER(target_column) as target_column,
+            tpa as tpa,  -- Keep TPA as-is (lowercase) to match TPA_MASTER
             'MANUAL' as mapping_method,
             1.0 as confidence_score, -- Manual mappings have 100% confidence
             transformation_logic,
@@ -78,6 +80,7 @@ BEGIN
        AND fm.source_table = src.source_table
        AND fm.target_table = src.target_table
        AND fm.target_column = src.target_column
+       AND fm.tpa = src.tpa
     WHEN MATCHED THEN UPDATE SET
         mapping_method = src.mapping_method,
         confidence_score = src.confidence_score,
@@ -86,11 +89,11 @@ BEGIN
         approved = src.approved,
         updated_timestamp = CURRENT_TIMESTAMP()
     WHEN NOT MATCHED THEN INSERT (
-        source_field, source_table, target_table, target_column,
+        source_field, source_table, target_table, target_column, tpa,
         mapping_method, confidence_score, transformation_logic, description,
         approved
     ) VALUES (
-        src.source_field, src.source_table, src.target_table, src.target_column,
+        src.source_field, src.source_table, src.target_table, src.target_column, src.tpa,
         src.mapping_method, src.confidence_score, src.transformation_logic, src.description,
         src.approved
     );

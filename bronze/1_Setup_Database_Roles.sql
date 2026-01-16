@@ -296,7 +296,33 @@ GRANT ALL PRIVILEGES ON FUTURE TASKS IN SCHEMA IDENTIFIER($schema_public)
     TO ROLE IDENTIFIER($role_admin);
 
 -- =================================================================
--- SECTION 6: Grant Role Management Privileges (Use SECURITYADMIN)
+-- SECTION 6: Grant Task Execution Privileges
+-- =================================================================
+
+-- EXECUTE TASK is a global privilege that must be granted by ACCOUNTADMIN
+-- Strategy: Grant to SYSADMIN first (if needed), then SYSADMIN delegates to custom roles
+-- This allows future deployments to work without ACCOUNTADMIN access
+
+-- NOTE: The ACCOUNTADMIN section below should be run ONCE as a one-time setup
+-- If SYSADMIN already has EXECUTE TASK privilege, this section can be skipped
+-- The deployment script will check for this and guide you if needed
+
+-- UNCOMMENT AND RUN THESE LINES AS ACCOUNTADMIN (ONE-TIME SETUP):
+/*
+USE ROLE ACCOUNTADMIN;
+GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;
+GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;
+*/
+
+-- SYSADMIN grants to the custom admin role
+-- This works if SYSADMIN already has EXECUTE TASK with GRANT OPTION
+USE ROLE SYSADMIN;
+
+GRANT EXECUTE TASK ON ACCOUNT TO ROLE IDENTIFIER($role_admin);
+GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE IDENTIFIER($role_admin);
+
+-- =================================================================
+-- SECTION 7: Grant Role Management Privileges (Use SECURITYADMIN)
 -- =================================================================
 
 USE ROLE SECURITYADMIN;
@@ -312,7 +338,7 @@ GRANT MODIFY, MONITOR ON DATABASE IDENTIFIER($database_name)
     TO ROLE IDENTIFIER($role_admin);
 
 -- =================================================================
--- SECTION 7: Verification
+-- SECTION 8: Verification
 -- =================================================================
 
 -- Show created roles
@@ -358,7 +384,7 @@ EXECUTE IMMEDIATE $sql_cmd;
 -- EXECUTE IMMEDIATE $sql_cmd;
 
 -- =================================================================
--- SECTION 8: User Assignment (Use SECURITYADMIN)
+-- SECTION 9: User Assignment (Use SECURITYADMIN)
 -- =================================================================
 
 -- To grant roles to users, use SECURITYADMIN
@@ -378,7 +404,7 @@ EXECUTE IMMEDIATE $sql_cmd;
 */
 
 -- =================================================================
--- SECTION 9: Testing (Optional - Uncomment to Test)
+-- SECTION 10: Testing (Optional - Uncomment to Test)
 -- =================================================================
 
 /*

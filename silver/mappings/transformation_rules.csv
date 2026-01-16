@@ -1,9 +1,1 @@
-rule_id,rule_name,rule_type,target_table,target_column,rule_logic,rule_parameters,priority,error_action,description,active
-DQ001,File Name Not Null,DATA_QUALITY,file_metadata,source_file_name,IS NOT NULL,,1,REJECT,Ensures source_file_name is not null,TRUE
-DQ002,File Name Format,DATA_QUALITY,file_metadata,source_file_name,RLIKE '^[A-Za-z0-9_.-]+$',,2,LOG,Validates file name contains only allowed characters,TRUE
-DQ003,Ingestion Timestamp Not Null,DATA_QUALITY,file_metadata,ingestion_timestamp,IS NOT NULL,,1,REJECT,Ensures ingestion_timestamp is not null,TRUE
-DQ004,File Size Positive,DATA_QUALITY,file_metadata,file_size_bytes,> 0,,3,LOG,Validates file size is positive,TRUE
-STD001,Standardize Timestamp,STANDARDIZATION,file_metadata,ingestion_timestamp,TO_TIMESTAMP_NTZ,,10,LOG,Converts timestamp to NTZ format,TRUE
-STD002,Uppercase File Extension,STANDARDIZATION,file_metadata,source_file_name,UPPER,,11,LOG,Standardizes file extension to uppercase,FALSE
-BL001,Set Default Status,BUSINESS_LOGIC,file_metadata,processing_status,"COALESCE(processing_status 'PENDING')",,20,LOG,Sets default processing status if null,TRUE
-DD001,Deduplicate by Filename,DEDUPLICATION,file_metadata,,source_file_name,"{""strategy"": ""KEEP_LAST""}",30,LOG,Removes duplicate files keeping the most recent,TRUE
+rule_id,rule_name,rule_type,target_table,target_column,tpa,rule_logic,rule_parameters,priority,error_action,description,active

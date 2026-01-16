@@ -132,25 +132,46 @@ After deployment, access the app via Snowsight:
 ## Features
 
 ### 📤 Upload Files Tab
+- **TPA Selection**: Choose Third Party Administrator (TPA) from dropdown or enter custom name
+  - Predefined options: provider_a, provider_b, provider_c, provider_d, provider_e
+  - Custom option: Enter any custom TPA name
+  - Files are uploaded to TPA-specific subfolders: `@SRC/{tpa_name}/`
 - Drag-and-drop or browse to upload CSV/Excel files
 - Multi-file upload support
 - Real-time file validation (type and size)
-- Progress tracking
+- Progress tracking with TPA information
 - Upload summary with success/failure counts
+- Automatic TPA metadata extraction and storage
 
-### 📋 Processing Queue Tab
+### 📊 Processing Status Tab
 - View file processing status in real-time
+- **TPA Column**: See which TPA each file belongs to
 - Filter by status (PENDING, PROCESSING, SUCCESS, FAILED)
-- Metrics dashboard
+- Filter by file type (CSV, EXCEL)
+- **Filter by TPA**: Filter files by Third Party Administrator
+- Metrics dashboard with success rates
 - Detailed error messages for failed files
 - Refresh capability
+- Download results as CSV
 
-### 📂 Stage Files Tab
-- List all files in the source stage
+### 📂 File Stages Tab
+- Browse all stages (`@SRC`, `@COMPLETED`, `@ERROR`, `@ARCHIVE`)
+- List all files in each stage
 - View file metadata (size, last modified, MD5 hash)
-- File count summary
+- File count summary per stage
 
-### ⚙️ Task Management Tab (NEW)
+### 📋 Raw Data Viewer Tab (NEW)
+- **View RAW_DATA_TABLE contents**: Browse all ingested data
+- **Summary Metrics**: Total rows, unique files, unique TPAs, date range
+- **Filter by TPA**: Select one or more TPAs to view their data
+- **Filter by File**: Select specific files to view
+- **Pagination**: Configurable rows per page (50-1000)
+- **JSON Data Display**: View raw data in JSON format
+- **Sample Row Details**: Expand to see detailed JSON structure
+- **Download**: Export filtered data as CSV
+- **Real-time Refresh**: Update view with latest data
+
+### ⚙️ Task Management Tab
 - **Real-time Task Status**: View the current state of all pipeline tasks
 - **Individual Task Control**:
   - **Process Now**: Execute any task immediately without waiting for the schedule

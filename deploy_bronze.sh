@@ -59,19 +59,65 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Setup logging
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOG_DIR="logs"
+LOG_FILE="${LOG_DIR}/bronze_deployment_${TIMESTAMP}.log"
+
+# Create logs directory if it doesn't exist
+mkdir -p "$LOG_DIR"
+
+# Logging functions
+log() {
+    local level="$1"
+    shift
+    local message="$@"
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[${timestamp}] [${level}] ${message}" >> "$LOG_FILE"
+}
+
+log_info() {
+    log "INFO" "$@"
+    echo -e "${BLUE}$@${NC}"
+}
+
+log_success() {
+    log "SUCCESS" "$@"
+    echo -e "${GREEN}$@${NC}"
+}
+
+log_warning() {
+    log "WARNING" "$@"
+    echo -e "${YELLOW}$@${NC}"
+}
+
+log_error() {
+    log "ERROR" "$@"
+    echo -e "${RED}$@${NC}"
+}
+
+# Log script start
+log "INFO" "=========================================="
+log "INFO" "Bronze Layer Deployment Started"
+log "INFO" "Timestamp: ${TIMESTAMP}"
+log "INFO" "OS: ${OS}"
+log "INFO" "Python: ${PYTHON_CMD}"
+log "INFO" "=========================================="
+
 # Default config file
 CONFIG_FILE="${1:-default.config}"
 
 # Check if config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo -e "${RED}ERROR: Configuration file not found: ${CONFIG_FILE}${NC}"
+    log_error "Configuration file not found: ${CONFIG_FILE}"
     echo "Please ensure the configuration file exists or run without arguments to use default.config"
     exit 1
 fi
 
 # Load configuration from file
-echo -e "${BLUE}Loading configuration from: ${CONFIG_FILE}${NC}"
+log_info "Loading configuration from: ${CONFIG_FILE}"
 source "$CONFIG_FILE"
+log "INFO" "Configuration loaded successfully"
 
 # Set deployment behavior flags (with defaults if not set in config)
 ACCEPT_DEFAULTS="${ACCEPT_DEFAULTS:-false}"
@@ -97,23 +143,28 @@ echo -e "${BLUE}================================================${NC}"
 echo -e "${BLUE}  Snowflake Bronze Layer Deployment${NC}"
 echo -e "${BLUE}================================================${NC}"
 echo ""
+echo -e "${BLUE}Log file: ${LOG_FILE}${NC}"
+echo ""
 
 # Check if snow CLI is installed
+log "INFO" "Checking for Snowflake CLI..."
 if ! command -v snow &> /dev/null; then
-    echo -e "${RED}ERROR: Snowflake CLI (snow) is not installed or not in PATH${NC}"
+    log_error "Snowflake CLI (snow) is not installed or not in PATH"
     echo "Please install Snowflake CLI from: https://docs.snowflake.com/en/developer-guide/snowflake-cli/index"
     echo ""
     echo "Installation: pip install snowflake-cli-labs"
     exit 1
 fi
+log "INFO" "Snowflake CLI found"
 
 # Get list of available connections
-echo -e "${BLUE}Checking Snowflake CLI connection...${NC}"
+log_info "Checking Snowflake CLI connection..."
 CONNECTIONS_JSON=$(snow connection list --format json 2>/dev/null)
 CONNECTION_COUNT=$(echo "$CONNECTIONS_JSON" | $PYTHON_CMD -c "import sys, json; data = json.load(sys.stdin); print(len(data))" 2>/dev/null || echo "0")
+log "INFO" "Found ${CONNECTION_COUNT} Snowflake connection(s)"
 
 if [ "$CONNECTION_COUNT" = "0" ]; then
-    echo -e "${RED}ERROR: No Snowflake connections configured${NC}"
+    log_error "No Snowflake connections configured"
     echo "Please configure a connection with: snow connection add"
     exit 1
 elif [ "$CONNECTION_COUNT" = "1" ]; then
@@ -191,7 +242,7 @@ echo -e "${GREEN}✓ Configuration loaded from: ${CONFIG_FILE}${NC}"
 echo ""
 
 # Check for required roles
-echo -e "${BLUE}Checking required permissions...${NC}"
+log_info "Checking required permissions..."
 
 # Temporarily disable exit on error for role checks
 set +e
@@ -210,8 +261,10 @@ SYSADMIN_EXIT=$?
 
 if [ $SYSADMIN_EXIT -eq 0 ] && echo "$SYSADMIN_RESULT" | grep -q "SYSADMIN_OK"; then
     HAS_SYSADMIN=1
+    log "INFO" "SYSADMIN role: Available"
 else
     HAS_SYSADMIN=0
+    log "WARNING" "SYSADMIN role: NOT Available"
 fi
 
 # Test SECURITYADMIN access
@@ -225,14 +278,62 @@ SECURITYADMIN_EXIT=$?
 
 if [ $SECURITYADMIN_EXIT -eq 0 ] && echo "$SECURITYADMIN_RESULT" | grep -q "SECURITYADMIN_OK"; then
     HAS_SECURITYADMIN=1
+    log "INFO" "SECURITYADMIN role: Available"
 else
     HAS_SECURITYADMIN=0
+    log "WARNING" "SECURITYADMIN role: NOT Available"
+fi
+
+# Test ACCOUNTADMIN access
+cat > "$TEMP_CHECK" << 'EOF'
+USE ROLE ACCOUNTADMIN;
+SELECT 'ACCOUNTADMIN_OK' as result;
+EOF
+
+ACCOUNTADMIN_RESULT=$(run_snow_sql -f "$TEMP_CHECK" 2>&1)
+ACCOUNTADMIN_EXIT=$?
+
+if [ $ACCOUNTADMIN_EXIT -eq 0 ] && echo "$ACCOUNTADMIN_RESULT" | grep -q "ACCOUNTADMIN_OK"; then
+    HAS_ACCOUNTADMIN=1
+    log "INFO" "ACCOUNTADMIN role: Available"
+else
+    HAS_ACCOUNTADMIN=0
+    log "INFO" "ACCOUNTADMIN role: NOT Available (optional if SYSADMIN has EXECUTE TASK)"
 fi
 
 rm -f "$TEMP_CHECK"
 
 # Re-enable exit on error
 set -e
+
+# Check if SYSADMIN has EXECUTE TASK privilege (before displaying results)
+SYSADMIN_HAS_EXECUTE_TASK=0
+if [ "$HAS_SYSADMIN" = "1" ]; then
+    log "INFO" "Checking EXECUTE TASK privilege for SYSADMIN..."
+    TEMP_PRIV_CHECK=$(mktemp)
+    cat > "$TEMP_PRIV_CHECK" << 'EOF'
+USE ROLE SYSADMIN;
+SHOW GRANTS TO ROLE SYSADMIN;
+EOF
+    
+    set +e
+    # Use --format json for reliable parsing (table format can be truncated)
+    if [ "$USE_DEFAULT_CONNECTION" = true ]; then
+        SYSADMIN_GRANTS=$(snow sql -f "$TEMP_PRIV_CHECK" --format json 2>&1)
+    else
+        SYSADMIN_GRANTS=$(snow sql --connection "$SNOW_CONNECTION" -f "$TEMP_PRIV_CHECK" --format json 2>&1)
+    fi
+    
+    # Check for EXECUTE TASK or EXECUTE_TASK in JSON output (case insensitive)
+    if echo "$SYSADMIN_GRANTS" | grep -qi "EXECUTE.*TASK\|EXECUTE_TASK"; then
+        SYSADMIN_HAS_EXECUTE_TASK=1
+        log "INFO" "EXECUTE TASK privilege: Granted"
+    else
+        log "WARNING" "EXECUTE TASK privilege: Not granted (one-time setup needed)"
+    fi
+    rm -f "$TEMP_PRIV_CHECK"
+    set -e
+fi
 
 # Display role check results
 echo ""
@@ -241,6 +342,11 @@ echo -e "${BLUE}Role Access Status:${NC}"
 # Check SYSADMIN
 if [ "$HAS_SYSADMIN" = "1" ]; then
     echo -e "${GREEN}  ✓ SYSADMIN role: Available${NC}"
+    if [ "$SYSADMIN_HAS_EXECUTE_TASK" = "1" ]; then
+        echo -e "${GREEN}    ✓ EXECUTE TASK privilege: Granted${NC}"
+    else
+        echo -e "${YELLOW}    ⚠ EXECUTE TASK privilege: Not granted (one-time setup needed)${NC}"
+    fi
 else
     echo -e "${RED}  ✗ SYSADMIN role: NOT Available${NC}"
 fi
@@ -250,6 +356,13 @@ if [ "$HAS_SECURITYADMIN" = "1" ]; then
     echo -e "${GREEN}  ✓ SECURITYADMIN role: Available${NC}"
 else
     echo -e "${RED}  ✗ SECURITYADMIN role: NOT Available${NC}"
+fi
+
+# Check ACCOUNTADMIN
+if [ "$HAS_ACCOUNTADMIN" = "1" ]; then
+    echo -e "${GREEN}  ✓ ACCOUNTADMIN role: Available${NC}"
+else
+    echo -e "${RED}  ✗ ACCOUNTADMIN role: NOT Available${NC}"
 fi
 
 echo ""
@@ -262,23 +375,81 @@ fi
 if [ "$HAS_SECURITYADMIN" = "0" ]; then
     MISSING_ROLES+=("SECURITYADMIN")
 fi
+if [ "$HAS_ACCOUNTADMIN" = "0" ]; then
+    MISSING_ROLES+=("ACCOUNTADMIN")
+fi
 
 if [ ${#MISSING_ROLES[@]} -gt 0 ]; then
     echo -e "${RED}✗ ERROR: Missing required roles${NC}"
     echo ""
-    echo -e "${YELLOW}This deployment requires both SYSADMIN and SECURITYADMIN roles to:${NC}"
-    echo "  - Create and manage database objects (SYSADMIN)"
-    echo "  - Create and grant roles (SECURITYADMIN)"
-    echo ""
-    echo -e "${YELLOW}Please have your Snowflake administrator grant the missing role(s):${NC}"
-    for role in "${MISSING_ROLES[@]}"; do
-        echo -e "${YELLOW}  GRANT ROLE ${role} TO USER $(whoami);${NC}"
-    done
-    echo ""
-    exit 1
+    
+    # Check if SYSADMIN has EXECUTE TASK privilege (already checked above)
+    # Only show SQL if we have SYSADMIN and SECURITYADMIN but missing EXECUTE TASK
+    if [ "$HAS_SYSADMIN" = "1" ] && [ "$HAS_SECURITYADMIN" = "1" ] && [ "$SYSADMIN_HAS_EXECUTE_TASK" = "0" ]; then
+        # SYSADMIN doesn't have EXECUTE TASK - show SQL to run
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  ONE-TIME SETUP REQUIRED${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${BLUE}SYSADMIN needs EXECUTE TASK privilege to create and manage tasks.${NC}"
+        echo -e "${BLUE}This is a one-time setup that requires ACCOUNTADMIN.${NC}"
+        echo ""
+        echo -e "${YELLOW}STEP 1: Open Snowflake (Snowsight) and run the following SQL:${NC}"
+        echo ""
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}USE ROLE ACCOUNTADMIN;${NC}"
+        echo ""
+        echo -e "${GREEN}-- Grant EXECUTE TASK to SYSADMIN with delegation capability${NC}"
+        echo -e "${GREEN}GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+        echo -e "${GREEN}GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+        echo ""
+        echo -e "${GREEN}-- Verify the grant${NC}"
+        echo -e "${GREEN}SHOW GRANTS TO ROLE SYSADMIN;${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${YELLOW}STEP 2: After running the SQL above, re-run this deployment script:${NC}"
+        echo -e "${BLUE}  ./deploy_bronze.sh${NC}"
+        echo ""
+        echo -e "${BLUE}What this does:${NC}"
+        echo "  ✓ Grants EXECUTE TASK privilege to SYSADMIN"
+        echo "  ✓ Allows SYSADMIN to delegate this privilege to other roles"
+        echo "  ✓ Future deployments only need SYSADMIN + SECURITYADMIN"
+        echo "  ✓ No more ACCOUNTADMIN required after this one-time setup"
+        echo ""
+        echo -e "${BLUE}Note: The CLI may not have ACCOUNTADMIN permissions, so run this${NC}"
+        echo -e "${BLUE}      directly in Snowflake (Snowsight) as ACCOUNTADMIN.${NC}"
+        echo ""
+        exit 1
+    fi
+    
+    # If SYSADMIN has EXECUTE TASK, we don't need ACCOUNTADMIN
+    if [ "$HAS_SYSADMIN" = "1" ] && [ "$HAS_SECURITYADMIN" = "1" ] && [ "$SYSADMIN_HAS_EXECUTE_TASK" = "1" ]; then
+        # Clear MISSING_ROLES since we can proceed without ACCOUNTADMIN
+        MISSING_ROLES=()
+    else
+        echo -e "${YELLOW}This deployment requires SYSADMIN, SECURITYADMIN, and ACCOUNTADMIN roles to:${NC}"
+        echo "  - Create and manage database objects (SYSADMIN)"
+        echo "  - Create and grant roles (SECURITYADMIN)"
+        echo "  - Grant EXECUTE TASK privilege (ACCOUNTADMIN - one-time setup)"
+        echo ""
+        echo -e "${YELLOW}Please have your Snowflake administrator grant the missing role(s):${NC}"
+        for role in "${MISSING_ROLES[@]}"; do
+            echo -e "${YELLOW}  GRANT ROLE ${role} TO USER $(whoami);${NC}"
+        done
+        echo ""
+        echo -e "${YELLOW}Note: ACCOUNTADMIN is only needed for initial setup.${NC}"
+        echo -e "${YELLOW}After running bronze/Fix_Task_Privileges.sql once, future${NC}"
+        echo -e "${YELLOW}deployments will only need SYSADMIN + SECURITYADMIN.${NC}"
+        echo ""
+        exit 1
+    fi
 fi
 
-echo -e "${GREEN}✓ All required roles available - proceeding with deployment${NC}"
+if [ "$SYSADMIN_HAS_EXECUTE_TASK" = "1" ]; then
+    echo -e "${GREEN}✓ All required permissions available - proceeding with deployment${NC}"
+else
+    echo -e "${GREEN}✓ All required roles available - proceeding with deployment${NC}"
+fi
 echo ""
 
 # Get configuration values - prompt only if not accepting defaults
@@ -515,6 +686,9 @@ execute_sql() {
     echo -e "${GREEN}File: ${sql_file}${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
+    log "INFO" "Executing: ${description}"
+    log "INFO" "File: ${sql_file}"
+    
     # On Windows, create ASCII-safe version to avoid charmap codec errors
     local exec_file="$sql_file"
     if [ "$OS" = "Windows" ]; then
@@ -526,14 +700,19 @@ execute_sql() {
     fi
     
     # Use snow sql to execute the SQL file
+    local start_time=$(date +%s)
     if run_snow_sql -f "$exec_file" ; then
-        echo -e "${GREEN}✓ Successfully executed: ${description}${NC}"
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        log_success "✓ Successfully executed: ${description} (${duration}s)"
         # Clean up temp file on Windows
         if [ "$OS" = "Windows" ] && [ -f "$temp_file" ]; then
             rm -f "$temp_file"
         fi
     else
-        echo -e "${RED}✗ Failed to execute: ${description}${NC}"
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        log_error "✗ Failed to execute: ${description} (${duration}s)"
         echo -e "${RED}Please check your connection has SYSADMIN and SECURITYADMIN permissions${NC}"
         # Clean up temp file on Windows
         if [ "$OS" = "Windows" ] && [ -f "$temp_file" ]; then
@@ -770,6 +949,10 @@ echo -e "${GREEN}================================================${NC}"
 echo -e "${GREEN}  Bronze Layer Deployment Completed! 🎉${NC}"
 echo -e "${GREEN}================================================${NC}"
 echo ""
+
+log "INFO" "=========================================="
+log "SUCCESS" "Bronze Layer Deployment Completed Successfully"
+log "INFO" "=========================================="
 echo -e "${BLUE}Pipeline Configuration:${NC}"
 echo "  Database:        ${DATABASE_NAME}"
 echo "  Schema:          ${SCHEMA_NAME}"
@@ -828,4 +1011,8 @@ echo -e "${YELLOW}     ALTER TASK ${DATABASE_NAME}.${SCHEMA_NAME}.${PROCESS_TASK
 echo -e "${YELLOW}     ALTER TASK ${DATABASE_NAME}.${SCHEMA_NAME}.${DISCOVER_TASK_NAME} RESUME;${NC}"
 echo ""
 echo -e "${GREEN}Deployment completed at: $(date)${NC}"
+echo -e "${BLUE}Deployment log saved to: ${LOG_FILE}${NC}"
+echo ""
 
+log "INFO" "Deployment completed at: $(date)"
+log "INFO" "Log file: ${LOG_FILE}"

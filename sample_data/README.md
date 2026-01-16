@@ -11,15 +11,18 @@ This folder contains sample healthcare claims data and Silver layer configuratio
 ```bash
 cd /path/to/file_processing_pipeline/sample_data
 
-# Upload claims files
-snow sql -q "PUT file://claims_data/*.csv @db_ingest_pipeline.BRONZE.SRC;"
-snow sql -q "PUT file://claims_data/*.xlsx @db_ingest_pipeline.BRONZE.SRC;"
+# Upload claims files (preserving folder structure for TPA tracking)
+snow sql -q "PUT file://claims_data/provider_a/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_a/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_b/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_b/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_c/*.xlsx @db_ingest_pipeline.BRONZE.SRC/provider_c/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_d/*.xlsx @db_ingest_pipeline.BRONZE.SRC/provider_d/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_e/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_e/ AUTO_COMPRESS=FALSE;"
 
 # Trigger processing
 snow sql -q "EXECUTE TASK db_ingest_pipeline.BRONZE.discover_files_task;"
 ```
 
-**Result**: 5 files uploaded, ~4,035 claims records ingested into Bronze layer
+**Result**: 5 files uploaded (in provider folders), ~4,035 claims records ingested into Bronze layer with TPA tracking
 
 ### Step 2: Load Silver Configuration
 
@@ -60,11 +63,16 @@ SELECT * FROM v_transformation_status_summary;
 ```
 sample_data/
 ├── claims_data/          # 5 healthcare claims files (~1 MB total)
-│   ├── provider_a_dental-claims-20240301.csv (192 KB, 875 records)
-│   ├── provider_b_medical-claims-20240115.csv (280 KB, 1,129 records)
-│   ├── provider_c_medical-claims-20240215.xlsx (223 KB, ~780 records)
-│   ├── provider_d_medical-claims-20240315.xlsx (170 KB, ~438 records)
-│   ├── provider_e_pharmacy-claims-20240201.csv (176 KB, 813 records)
+│   ├── provider_a/       # Dental claims (875 records)
+│   │   └── dental-claims-20240301.csv (192 KB)
+│   ├── provider_b/       # Medical claims (1,129 records)
+│   │   └── medical-claims-20240115.csv (280 KB)
+│   ├── provider_c/       # Medical claims (780 records)
+│   │   └── medical-claims-20240215.xlsx (223 KB)
+│   ├── provider_d/       # Medical claims (438 records)
+│   │   └── medical-claims-20240315.xlsx (170 KB)
+│   ├── provider_e/       # Pharmacy claims (813 records)
+│   │   └── pharmacy-claims-20240201.csv (176 KB)
 │   └── README.md
 ├── config/               # 5 Silver configuration files (~33 KB total)
 │   ├── silver_target_schemas.csv (4.2 KB, 56 columns)
@@ -99,33 +107,40 @@ sample_data/
 
 ### Bronze Layer Sample Data (Healthcare Claims)
 
-#### 1. **Provider A - Dental Claims** (`claims_data/provider_a_dental-claims-20240301.csv`)
+Data is organized by provider in subfolders. The **folder name maps to the TPA column** in Bronze, enabling provider-level tracking and filtering.
+
+#### 1. **Provider A - Dental Claims** (`claims_data/provider_a/dental-claims-20240301.csv`)
 - **Type**: Dental claims
 - **Records**: 875 claims
 - **Format**: CSV with custom date format (MM-DD-YYYY)
+- **TPA Value**: `provider_a`
 - **Key Fields**: Patient demographics, CDT procedure codes, dentist info, financial details
 
-#### 2. **Provider B - Medical Claims** (`claims_data/provider_b_medical-claims-20240115.csv`)
+#### 2. **Provider B - Medical Claims** (`claims_data/provider_b/medical-claims-20240115.csv`)
 - **Type**: Medical claims
 - **Records**: 1,129 claims
 - **Format**: CSV with ISO date format (YYYY-MM-DD)
+- **TPA Value**: `provider_b`
 - **Key Fields**: Member demographics, ICD-10 codes, CPT codes, provider info, plan types
 
-#### 3. **Provider E - Pharmacy Claims** (`claims_data/provider_e_pharmacy-claims-20240201.csv`)
+#### 3. **Provider E - Pharmacy Claims** (`claims_data/provider_e/pharmacy-claims-20240201.csv`)
 - **Type**: Pharmacy/prescription claims
 - **Records**: 813 claims
 - **Format**: CSV with slash date format (MM/DD/YYYY)
+- **TPA Value**: `provider_e`
 - **Key Fields**: Patient demographics, drug names, pharmacy info, financial details
 
-#### 4. **Provider C - Medical Claims** (`claims_data/provider_c_medical-claims-20240215.xlsx`)
+#### 4. **Provider C - Medical Claims** (`claims_data/provider_c/medical-claims-20240215.xlsx`)
 - **Type**: Medical claims
 - **Format**: Excel (.xlsx)
 - **Records**: ~780 claims
+- **TPA Value**: `provider_c`
 
-#### 5. **Provider D - Medical Claims** (`claims_data/provider_d_medical-claims-20240315.xlsx`)
+#### 5. **Provider D - Medical Claims** (`claims_data/provider_d/medical-claims-20240315.xlsx`)
 - **Type**: Medical claims
 - **Format**: Excel (.xlsx)
 - **Records**: ~438 claims
+- **TPA Value**: `provider_d`
 
 **See [claims_data/README.md](claims_data/README.md) for detailed field specifications.**
 

@@ -45,14 +45,16 @@ DECLARE
     files_added INT DEFAULT 0;
 BEGIN
     -- Discover CSV files
+    -- Note: Now stores full RELATIVE_PATH to support TPA folder structure
+    -- RELATIVE_PATH format: provider_a/file.csv or just file.csv (for legacy)
     INSERT INTO file_processing_queue (file_name, file_type, status)
     SELECT 
-        SPLIT_PART(RELATIVE_PATH, '/', -1) AS file_name,
+        RELATIVE_PATH AS file_name,  -- Store full path including TPA folder
         'CSV' AS file_type,
         'PENDING' AS status
     FROM DIRECTORY(@SRC)
     WHERE LOWER(RELATIVE_PATH) LIKE '%.csv'
-    AND SPLIT_PART(RELATIVE_PATH, '/', -1) NOT IN (
+    AND RELATIVE_PATH NOT IN (
         SELECT file_name FROM file_processing_queue 
         WHERE status IN ('PENDING', 'PROCESSING', 'SUCCESS')
     );
@@ -62,12 +64,12 @@ BEGIN
     -- Discover Excel files
     INSERT INTO file_processing_queue (file_name, file_type, status)
     SELECT 
-        SPLIT_PART(RELATIVE_PATH, '/', -1) AS file_name,
+        RELATIVE_PATH AS file_name,  -- Store full path including TPA folder
         'EXCEL' AS file_type,
         'PENDING' AS status
     FROM DIRECTORY(@SRC)
     WHERE (LOWER(RELATIVE_PATH) LIKE '%.xlsx' OR LOWER(RELATIVE_PATH) LIKE '%.xls')
-    AND SPLIT_PART(RELATIVE_PATH, '/', -1) NOT IN (
+    AND RELATIVE_PATH NOT IN (
         SELECT file_name FROM file_processing_queue 
         WHERE status IN ('PENDING', 'PROCESSING', 'SUCCESS')
     );

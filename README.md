@@ -51,6 +51,16 @@ Both layers include modern web interfaces built with Streamlit in Snowflake for 
 - 🔍 **Error Tracking**: Detailed error messages and troubleshooting
 - 📋 **Compact UI**: Collapsible task views with efficient layout
 
+### TPA (Third Party Administrator) Support
+- 🏢 **Multi-Tenant Architecture**: Support multiple healthcare providers in one system
+- 🔐 **Isolated Configurations**: Each TPA has independent schemas, mappings, and rules
+- 📊 **TPA-Specific Processing**: Different validation rules and transformations per provider
+- 🎯 **Navigation-Level Selection**: Select TPA once, applies to all operations
+- 📁 **Organized Storage**: Files automatically organized by TPA in stage folders
+- 🔄 **Flexible Evolution**: TPAs can change independently without affecting others
+
+> 📖 **Complete TPA Guide**: [`docs/TPA_IMPLEMENTATION_COMPLETE.md`](docs/TPA_IMPLEMENTATION_COMPLETE.md)
+
 ## 🏗️ Architecture
 
 ### Visual Architecture Diagrams
@@ -530,11 +540,16 @@ file_processing_pipeline/
 ├── undeploy.sh                         # Complete removal script
 │
 ├── sample_data/                        # Example CSV and Excel files
-│   ├── provider_a_dental-claims-20240301.csv
-│   ├── provider_b_medical-claims-20240115.csv
-│   ├── provider_c_medical-claims-20240215.xlsx
-│   ├── provider_d_medical-claims-20240315.xlsx
-│   └── provider_e_pharmacy-claims-20240201.csv
+│   ├── provider_a/                     # Dental claims (folder = TPA)
+│   │   └── dental-claims-20240301.csv
+│   ├── provider_b/                     # Medical claims (folder = TPA)
+│   │   └── medical-claims-20240115.csv
+│   ├── provider_c/                     # Medical claims (folder = TPA)
+│   │   └── medical-claims-20240215.xlsx
+│   ├── provider_d/                     # Medical claims (folder = TPA)
+│   │   └── medical-claims-20240315.xlsx
+│   └── provider_e/                     # Pharmacy claims (folder = TPA)
+│       └── pharmacy-claims-20240201.csv
 │
 ├── bronze/                             # 🥉 Bronze Layer (Raw Ingestion)
 │   ├── README.md                       # Bronze documentation
@@ -1063,8 +1078,9 @@ snow sql -q "DROP ROLE IF EXISTS db_ingest_pipeline_READONLY;"
 ## 📚 Documentation
 
 ### 📖 Complete Documentation Guide
-All documentation is organized in the `docs/` folder. Start here:
-- **[📘 Complete User Guide](docs/USER_GUIDE.md)** - **⭐ START HERE** - Comprehensive guide with screenshots
+
+**Start Here:**
+- **[📘 User Guide](docs/USER_GUIDE.md)** - **⭐ START HERE** - Comprehensive guide with screenshots
 - **[Documentation Index](DOCUMENTATION_INDEX.md)** - Complete guide to all documentation
 
 ### 🏗️ Architecture & Design
@@ -1072,11 +1088,10 @@ All documentation is organized in the `docs/` folder. Start here:
 - **[System Design](docs/design/SYSTEM_DESIGN.md)** - High-level design overview
 - **[Technical Specification](docs/design/TECHNICAL_SPECIFICATION.md)** - Detailed technical specs
 - **[Architecture Diagrams](docs/design/images/)** - Visual representations
-- **[Project Structure Analysis](docs/PROJECT_STRUCTURE_ANALYSIS.md)** - Organization details
 
-### 🚀 Deployment & Setup
-- **[Quick Deployment Guide](docs/deployment/QUICK_DEPLOYMENT_GUIDE.md)** - Fast setup
-- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Pre/post deployment verification
+### 🚀 Deployment & Operations
+- **[Deployment & Operations Guide](docs/DEPLOYMENT_AND_OPERATIONS.md)** - Complete deployment, configuration, logging, and troubleshooting
+- **[Silver Deployment Verification](silver/DEPLOYMENT_VERIFICATION.md)** - Post-deployment validation
 
 ### 🥉 Bronze Layer
 - **[Bronze README](bronze/README.md)** - Bronze layer overview
@@ -1086,12 +1101,9 @@ All documentation is organized in the `docs/` folder. Start here:
 ### 🥈 Silver Layer
 - **[Silver README](silver/README.md)** - Silver layer overview and quick start
 - **[Silver Streamlit App](silver/silver_streamlit/README.md)** - UI documentation
-- **[Silver Test Plan](docs/testing/TEST_PLAN_SILVER.md)** - Testing procedures
 
-### 📊 Implementation Details
-- **[Complete Documentation Summary](docs/COMPLETE_DOCUMENTATION_SUMMARY.md)** - Full overview
-- **[Silver Implementation Summary](docs/SILVER_IMPLEMENTATION_SUMMARY.md)** - Silver details
-- **[Structure Consistency Changes](docs/STRUCTURE_CONSISTENCY_CHANGES.md)** - Recent updates
+### 🏢 TPA (Third Party Administrator)
+- **[TPA Complete Guide](docs/guides/TPA_COMPLETE_GUIDE.md)** - Comprehensive TPA architecture, naming, configuration, and best practices
 
 ### 🔗 External Resources
 - [Snowflake Tasks Documentation](https://docs.snowflake.com/en/user-guide/tasks-intro)

@@ -34,7 +34,7 @@ SET ERROR_STAGE_NAME = 'SRC_ERROR';
 USE ROLE db_ingest_pipeline_ADMIN;
 
 -- Create database if not exists
-CREATE DATABASE IF NOT EXISTS IDENTIFIER($DATABASE_NAME);
+--CREATE DATABASE IF NOT EXISTS IDENTIFIER($DATABASE_NAME);
 USE DATABASE IDENTIFIER($DATABASE_NAME);
 
 -- Create schema if not exists
@@ -74,6 +74,41 @@ ENCRYPTION = (TYPE='SNOWFLAKE_SSE')
 COMMENT = 'Stage for Streamlit in Snowflake application files';
 
 -- ============================================
+-- TPA REFERENCE TABLE
+-- ============================================
+
+-- Create TPA (Third Party Administrator) reference table
+-- Stores master list of valid TPAs for file uploads
+CREATE TABLE IF NOT EXISTS TPA_MASTER (
+    TPA_CODE VARCHAR(500) PRIMARY KEY,               -- TPA identifier (e.g., 'provider_a')
+    TPA_NAME VARCHAR(500) NOT NULL,                  -- Full TPA name (e.g., 'Provider A Healthcare')
+    TPA_DESCRIPTION VARCHAR(5000),                   -- Description of the TPA
+    ACTIVE BOOLEAN DEFAULT TRUE,                     -- Whether TPA is active for uploads
+    CREATED_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    UPDATED_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    CREATED_BY VARCHAR(500) DEFAULT CURRENT_USER()
+)
+COMMENT = 'Master reference table for Third Party Administrators (TPAs). Defines valid TPA codes for file uploads.';
+
+-- Insert default TPAs (using MERGE to make script idempotent)
+MERGE INTO TPA_MASTER AS target
+USING (
+    SELECT 'provider_a' AS TPA_CODE, 'Provider A Healthcare' AS TPA_NAME, 'Sample healthcare provider A' AS TPA_DESCRIPTION, TRUE AS ACTIVE
+    UNION ALL
+    SELECT 'provider_b', 'Provider B Insurance', 'Sample insurance provider B', TRUE
+    UNION ALL
+    SELECT 'provider_c', 'Provider C Medical', 'Sample medical provider C', TRUE
+    UNION ALL
+    SELECT 'provider_d', 'Provider D Dental', 'Sample dental provider D', TRUE
+    UNION ALL
+    SELECT 'provider_e', 'Provider E Pharmacy', 'Sample pharmacy provider E', TRUE
+) AS source
+ON target.TPA_CODE = source.TPA_CODE
+WHEN NOT MATCHED THEN
+    INSERT (TPA_CODE, TPA_NAME, TPA_DESCRIPTION, ACTIVE)
+    VALUES (source.TPA_CODE, source.TPA_NAME, source.TPA_DESCRIPTION, source.ACTIVE);
+
+-- ============================================
 -- RAW DATA TABLE
 -- ============================================
 
@@ -88,7 +123,7 @@ CREATE OR REPLACE TABLE RAW_DATA_TABLE (
     STAGE_NAME VARCHAR(500),                         -- Source stage path
     FILE_SIZE NUMBER(38,0),                          -- File size in bytes
     FILE_LAST_MODIFIED TIMESTAMP_NTZ,                -- File last modified timestamp
-    TPA VARCHAR(500)                                 -- File path extracted from stage
+    TPA VARCHAR(500) NOT NULL                        -- TPA code (references TPA_MASTER.TPA_CODE)
 );
 
 -- ============================================
@@ -191,6 +226,18 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
         file_path = file_info['name']
         file_size = file_info['size']
         
+        # Extract TPA (provider folder name) from file path
+        # file_path format: "stage_name/folder_name/file.csv" or just "file.csv"
+        # Extract the folder name between the first and last slash
+        tpa_value = None
+        path_parts = file_path.split('/')
+        if len(path_parts) >= 2:
+            # If path has folders, use the first folder after stage name as TPA
+            tpa_value = path_parts[-2]  # Second to last element (folder before filename)
+        else:
+            # If no folder structure, use filename without extension as fallback
+            tpa_value = file_name.rsplit('.', 1)[0]
+        
         # Convert file timestamp to Snowflake format
         file_last_modified = None
         if file_info['last_modified']:
@@ -252,7 +299,7 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
                 stage_path,
                 file_size,
                 file_last_modified,
-                file_path
+                tpa_value
             )
             rows_to_insert.append(row_data)
         
@@ -273,7 +320,8 @@ def process_csv(session: Session, source_stage_name: str, file_name: str):
             )
             
             # Create temporary staging table
-            temp_table_name = f"TEMP_INSERT_{file_name.replace('.', '_').replace('-', '_').upper()}"
+            # Replace invalid characters for table names (including / from TPA folders)
+            temp_table_name = f"TEMP_INSERT_{file_name.replace('/', '_').replace('.', '_').replace('-', '_').upper()}"
             df_final.write.mode("overwrite").save_as_table(temp_table_name)
             
             # Get counts before merge
@@ -384,6 +432,18 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
         file_path = file_info['name']
         file_size = file_info['size']
         
+        # Extract TPA (provider folder name) from file path
+        # file_path format: "stage_name/folder_name/file.xlsx" or just "file.xlsx"
+        # Extract the folder name between the first and last slash
+        tpa_value = None
+        path_parts = file_path.split('/')
+        if len(path_parts) >= 2:
+            # If path has folders, use the first folder after stage name as TPA
+            tpa_value = path_parts[-2]  # Second to last element (folder before filename)
+        else:
+            # If no folder structure, use filename without extension as fallback
+            tpa_value = file_name.rsplit('.', 1)[0]
+        
         # Convert file timestamp to Snowflake format
         file_last_modified = None
         if file_info['last_modified']:
@@ -445,7 +505,7 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
                 stage_path,
                 file_size,
                 file_last_modified,
-                file_path
+                tpa_value
             )
             rows_to_insert.append(row_data)
         
@@ -466,7 +526,8 @@ def process_excel(session: Session, source_stage_name: str, file_name: str):
             )
             
             # Create temporary staging table
-            temp_table_name = f"TEMP_INSERT_{file_name.replace('.', '_').replace('-', '_').upper()}"
+            # Replace invalid characters for table names (including / from TPA folders)
+            temp_table_name = f"TEMP_INSERT_{file_name.replace('/', '_').replace('.', '_').replace('-', '_').upper()}"
             df_final.write.mode("overwrite").save_as_table(temp_table_name)
             
             # Get counts before merge

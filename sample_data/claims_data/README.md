@@ -2,14 +2,34 @@
 
 This folder contains sample healthcare claims files from five different providers for testing the Bronze layer ingestion pipeline.
 
-## 📁 Files
+## 📁 Folder Structure
+
+The data is organized by provider, with each provider in its own subfolder. The **folder name maps to the TPA column** in the Bronze layer, allowing you to track which provider each claim came from.
+
+```
+claims_data/
+├── provider_a/
+│   └── dental-claims-20240301.csv
+├── provider_b/
+│   └── medical-claims-20240115.csv
+├── provider_c/
+│   └── medical-claims-20240215.xlsx
+├── provider_d/
+│   └── medical-claims-20240315.xlsx
+└── provider_e/
+    └── pharmacy-claims-20240201.csv
+```
+
+## 📊 Provider Data
 
 ### 1. Provider A - Dental Claims
-**File**: `provider_a_dental-claims-20240301.csv`  
+**Folder**: `provider_a/`  
+**File**: `dental-claims-20240301.csv`  
 **Records**: 875 claims  
 **Type**: Dental claims  
 **Format**: CSV  
 **Date Format**: MM-DD-YYYY  
+**TPA Value**: `provider_a`
 
 **Key Fields**:
 - Patient and subscriber demographics
@@ -20,11 +40,13 @@ This folder contains sample healthcare claims files from five different provider
 ---
 
 ### 2. Provider B - Medical Claims
-**File**: `provider_b_medical-claims-20240115.csv`  
+**Folder**: `provider_b/`  
+**File**: `medical-claims-20240115.csv`  
 **Records**: 1,129 claims  
 **Type**: Medical claims  
 **Format**: CSV  
 **Date Format**: YYYY-MM-DD (ISO)  
+**TPA Value**: `provider_b`
 
 **Key Fields**:
 - Member and subscriber demographics
@@ -37,10 +59,12 @@ This folder contains sample healthcare claims files from five different provider
 ---
 
 ### 3. Provider C - Medical Claims
-**File**: `provider_c_medical-claims-20240215.xlsx`  
+**Folder**: `provider_c/`  
+**File**: `medical-claims-20240215.xlsx`  
 **Records**: ~780 claims  
 **Type**: Medical claims  
 **Format**: Excel (.xlsx)  
+**TPA Value**: `provider_c`
 
 **Key Fields**:
 - Similar structure to Provider B
@@ -50,10 +74,12 @@ This folder contains sample healthcare claims files from five different provider
 ---
 
 ### 4. Provider D - Medical Claims
-**File**: `provider_d_medical-claims-20240315.xlsx`  
+**Folder**: `provider_d/`  
+**File**: `medical-claims-20240315.xlsx`  
 **Records**: ~438 claims  
 **Type**: Medical claims  
 **Format**: Excel (.xlsx)  
+**TPA Value**: `provider_d`
 
 **Key Fields**:
 - Integrated care model data
@@ -63,11 +89,13 @@ This folder contains sample healthcare claims files from five different provider
 ---
 
 ### 5. Provider E - Pharmacy Claims
-**File**: `provider_e_pharmacy-claims-20240201.csv`  
+**Folder**: `provider_e/`  
+**File**: `pharmacy-claims-20240201.csv`  
 **Records**: 813 claims  
 **Type**: Pharmacy/prescription claims  
 **Format**: CSV  
 **Date Format**: MM/DD/YYYY  
+**TPA Value**: `provider_e`
 
 **Key Fields**:
 - Patient and subscriber demographics
@@ -95,17 +123,28 @@ This folder contains sample healthcare claims files from five different provider
 
 ### Upload to Bronze Layer
 
+The folder structure is preserved when uploading to Snowflake, allowing the Bronze layer to extract the provider name (TPA) from the folder path.
+
 ```bash
 # Navigate to sample_data directory
 cd /path/to/file_processing_pipeline/sample_data
 
-# Upload all claims files to Bronze stage
-snow sql -q "PUT file://claims_data/*.csv @db_ingest_pipeline.BRONZE.SRC;"
-snow sql -q "PUT file://claims_data/*.xlsx @db_ingest_pipeline.BRONZE.SRC;"
+# Upload all claims files with folder structure to Bronze stage
+# The folder names (provider_a, provider_b, etc.) will be preserved
+snow sql -q "PUT file://claims_data/provider_a/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_a/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_b/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_b/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_c/*.xlsx @db_ingest_pipeline.BRONZE.SRC/provider_c/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_d/*.xlsx @db_ingest_pipeline.BRONZE.SRC/provider_d/ AUTO_COMPRESS=FALSE;"
+snow sql -q "PUT file://claims_data/provider_e/*.csv @db_ingest_pipeline.BRONZE.SRC/provider_e/ AUTO_COMPRESS=FALSE;"
 
-# Verify upload
+# Or upload all at once (requires recursive upload support)
+# snow sql -q "PUT file://claims_data/*/* @db_ingest_pipeline.BRONZE.SRC/ AUTO_COMPRESS=FALSE;"
+
+# Verify upload (should show files in their respective folders)
 snow sql -q "LIST @db_ingest_pipeline.BRONZE.SRC;"
 ```
+
+**Note**: The folder structure ensures that each file's TPA column in the Bronze layer will contain the provider name (e.g., `provider_a`, `provider_b`, etc.).
 
 ### Trigger Processing
 

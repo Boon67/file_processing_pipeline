@@ -55,6 +55,7 @@ BEGIN
                 rule_type VARCHAR(50),
                 target_table VARCHAR(500),
                 target_column VARCHAR(500),
+                tpa VARCHAR(500),
                 rule_logic VARCHAR(5000),
                 rule_parameters VARCHAR(5000),
         priority VARCHAR(10),
@@ -78,6 +79,7 @@ BEGIN
                          THEN UPPER(target_table) ELSE NULL END as target_table,
                     CASE WHEN target_column IS NOT NULL AND target_column != '' 
                          THEN UPPER(target_column) ELSE NULL END as target_column,
+                    tpa as tpa,  -- Keep TPA as-is (lowercase) to match TPA_MASTER
                     rule_logic,
                     TRY_PARSE_JSON(rule_parameters) as rule_parameters,
             COALESCE(TRY_CAST(priority AS INTEGER), 100) as priority,
@@ -86,7 +88,7 @@ BEGIN
                     CASE WHEN UPPER(active) IN ('TRUE', 'YES', '1') THEN TRUE ELSE FALSE END as active
                 FROM temp_transformation_rules
             ) src
-            ON tr.rule_id = src.rule_id
+            ON tr.rule_id = src.rule_id AND tr.tpa = src.tpa
             WHEN MATCHED THEN UPDATE SET
                 rule_name = src.rule_name,
                 rule_type = src.rule_type,
@@ -100,10 +102,10 @@ BEGIN
                 active = src.active,
                 updated_timestamp = CURRENT_TIMESTAMP()
             WHEN NOT MATCHED THEN INSERT (
-                rule_id, rule_name, rule_type, target_table, target_column,
+                rule_id, rule_name, rule_type, target_table, target_column, tpa,
                 rule_logic, rule_parameters, priority, error_action, description, active
             ) VALUES (
-                src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column,
+                src.rule_id, src.rule_name, src.rule_type, src.target_table, src.target_column, src.tpa,
                 src.rule_logic, src.rule_parameters, src.priority, src.error_action, src.description, src.active
     );
     

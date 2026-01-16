@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS target_schemas (
     schema_id NUMBER(38,0) AUTOINCREMENT PRIMARY KEY,
     table_name VARCHAR(500) NOT NULL,
     column_name VARCHAR(500) NOT NULL,
+    tpa VARCHAR(500) NOT NULL, -- Third Party Administrator/Provider - REQUIRED for each schema definition
     data_type VARCHAR(200) NOT NULL,
     nullable BOOLEAN DEFAULT TRUE,
     default_value VARCHAR(1000),
@@ -92,9 +93,9 @@ CREATE TABLE IF NOT EXISTS target_schemas (
     updated_timestamp TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
     created_by VARCHAR(500) DEFAULT CURRENT_USER(),
     active BOOLEAN DEFAULT TRUE,
-    CONSTRAINT uk_target_schemas UNIQUE (table_name, column_name)
+    CONSTRAINT uk_target_schemas UNIQUE (table_name, column_name, tpa)
 )
-COMMENT = 'Metadata table defining Silver layer target table schemas dynamically';
+COMMENT = 'Metadata table defining Silver layer target table schemas dynamically. TPA column is REQUIRED - each schema definition must be assigned to a specific TPA. This allows different TPAs to have different target schemas or field definitions for the same logical table.';
 
 -- Field Mappings: Bronze → Silver field mappings
 CREATE TABLE IF NOT EXISTS field_mappings (
@@ -103,6 +104,7 @@ CREATE TABLE IF NOT EXISTS field_mappings (
     source_table VARCHAR(500) DEFAULT 'RAW_DATA_TABLE',
     target_table VARCHAR(500) NOT NULL,
     target_column VARCHAR(500) NOT NULL,
+    tpa VARCHAR(500) NOT NULL, -- Third Party Administrator/Provider - REQUIRED for each mapping
     mapping_method VARCHAR(50) NOT NULL, -- MANUAL, ML_AUTO, LLM_CORTEX
     confidence_score FLOAT,
     transformation_logic VARCHAR(5000), -- Optional SQL expression for transformation
@@ -112,10 +114,10 @@ CREATE TABLE IF NOT EXISTS field_mappings (
     created_by VARCHAR(500) DEFAULT CURRENT_USER(),
     approved BOOLEAN DEFAULT FALSE,
     approved_by VARCHAR(500),
-    approved_timestamp TIMESTAMP_NTZ,
-    CONSTRAINT uk_field_mappings UNIQUE (source_field, source_table, target_table, target_column)
+    approved_timestamp TIMESTAMP_NTZ
 )
-COMMENT = 'Field mappings from Bronze to Silver with confidence scores and transformation logic. Valid mapping_method values: MANUAL, ML_AUTO, LLM_CORTEX. Mappings must be approved before use in transformations.';
+COMMENT = 'Field mappings from Bronze to Silver with confidence scores and transformation logic. Valid mapping_method values: MANUAL, ML_AUTO, LLM_CORTEX. TPA column is REQUIRED - each mapping must be assigned to a specific TPA. Mappings must be approved before use in transformations.';
+
 
 -- Known Field Mappings: Reference data for ML training
 CREATE TABLE IF NOT EXISTS known_field_mappings (
@@ -229,6 +231,7 @@ CREATE TABLE IF NOT EXISTS transformation_rules (
     rule_type VARCHAR(50) NOT NULL, -- DATA_QUALITY, BUSINESS_LOGIC, STANDARDIZATION, DEDUPLICATION
     target_table VARCHAR(500),
     target_column VARCHAR(500),
+    tpa VARCHAR(500) NOT NULL, -- Third Party Administrator/Provider - REQUIRED for each rule
     rule_logic VARCHAR(5000) NOT NULL, -- SQL expression or condition
     rule_parameters VARIANT, -- JSON for complex rule configurations
     priority INTEGER DEFAULT 100,
@@ -239,7 +242,7 @@ CREATE TABLE IF NOT EXISTS transformation_rules (
     created_by VARCHAR(500) DEFAULT CURRENT_USER(),
     active BOOLEAN DEFAULT TRUE
 )
-COMMENT = 'Transformation rules for data quality, business logic, standardization, and deduplication. Valid rule_type: DATA_QUALITY, BUSINESS_LOGIC, STANDARDIZATION, DEDUPLICATION. Valid error_action: LOG, REJECT, QUARANTINE';
+COMMENT = 'Transformation rules for data quality, business logic, standardization, and deduplication. Valid rule_type: DATA_QUALITY, BUSINESS_LOGIC, STANDARDIZATION, DEDUPLICATION. Valid error_action: LOG, REJECT, QUARANTINE. TPA column is REQUIRED - each rule must be assigned to a specific TPA';
 
 -- Silver Processing Log: Transformation audit trail
 CREATE TABLE IF NOT EXISTS silver_processing_log (
@@ -476,34 +479,34 @@ GRANT SELECT ON FUTURE TABLES IN SCHEMA IDENTIFIER($DATABASE_NAME || '.' || $BRO
 MERGE INTO transformation_rules AS target
 USING (
     SELECT * FROM (VALUES
-        -- Data Quality Rules
-        ('DQ001', 'Validate First Name Not Null', 'DATA_QUALITY', 'CLAIMS', 'FIRST_NAME', 'IS NOT NULL', NULL::VARIANT, 10, 'REJECT', 'Ensure patient first name is always populated', TRUE),
-        ('DQ002', 'Validate Last Name Not Null', 'DATA_QUALITY', 'CLAIMS', 'LAST_NAME', 'IS NOT NULL', NULL::VARIANT, 10, 'REJECT', 'Ensure patient last name is always populated', TRUE),
-        ('DQ003', 'Validate Date of Birth Format', 'DATA_QUALITY', 'CLAIMS', 'DOB', 'IS NOT NULL AND TRY_TO_DATE(DOB) IS NOT NULL', NULL::VARIANT, 20, 'QUARANTINE', 'Ensure DOB is a valid date', TRUE),
-        ('DQ004', 'Validate Claim Number Format', 'DATA_QUALITY', 'CLAIMS', 'CLAIM_NUM', 'RLIKE ''^[A-Z0-9]{8,20}$''', NULL::VARIANT, 30, 'QUARANTINE', 'Claim number must be 8-20 alphanumeric characters', TRUE),
-        ('DQ005', 'Validate Billed Charges Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'BILLED_CHARGES', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Billed charges cannot be negative', TRUE),
-        ('DQ006', 'Validate Allowed Amount Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'ALLOWED_AMT', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Allowed amount cannot be negative', TRUE),
-        ('DQ007', 'Validate Deductible Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'DEDUCTIBLE', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Deductible cannot be negative', TRUE),
-        ('DQ008', 'Validate Copay Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'COPAY', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Copay cannot be negative', TRUE),
-        ('DQ009', 'Validate Coinsurance Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'COINSURANCE', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Coinsurance cannot be negative', TRUE),
-        ('DQ010', 'Validate Plan Paid Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'PLAN_PAID', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Plan paid amount cannot be negative', TRUE),
-        ('DQ011', 'Validate Claim Type Values', 'DATA_QUALITY', 'CLAIMS', 'CLAIM_TYPE', 'IN (''MEDICAL'', ''PHARMACY'', ''DENTAL'', ''VISION'', ''MENTAL_HEALTH'')', NULL::VARIANT, 50, 'LOG', 'Claim type must be one of the valid values', TRUE),
-        ('DQ012', 'Validate Plan Type Values', 'DATA_QUALITY', 'CLAIMS', 'PLAN_TYPE', 'IN (''HMO'', ''PPO'', ''EPO'', ''POS'', ''HDHP'')', NULL::VARIANT, 50, 'LOG', 'Plan type must be one of the valid values', TRUE),
-        ('DQ013', 'Validate Provider NPI Format', 'DATA_QUALITY', 'CLAIMS', 'PROVIDER_NPI', 'RLIKE ''^[0-9]{10}$''', NULL::VARIANT, 60, 'QUARANTINE', 'Provider NPI must be exactly 10 digits', TRUE),
-        ('DQ014', 'Validate Provider TIN Format', 'DATA_QUALITY', 'CLAIMS', 'PROVIDER_TIN', 'RLIKE ''^[0-9]{9}$''', NULL::VARIANT, 60, 'QUARANTINE', 'Provider TIN must be exactly 9 digits (EIN format)', TRUE),
-        -- Standardization Rules
-        ('STD001', 'Standardize First Name', 'STANDARDIZATION', 'CLAIMS', 'FIRST_NAME', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert first name to uppercase', TRUE),
-        ('STD002', 'Standardize Last Name', 'STANDARDIZATION', 'CLAIMS', 'LAST_NAME', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert last name to uppercase', TRUE),
-        ('STD003', 'Standardize Subscriber First Name', 'STANDARDIZATION', 'CLAIMS', 'SUBSCRIBER_FIRST', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert subscriber first name to uppercase', TRUE),
-        ('STD004', 'Standardize Subscriber Last Name', 'STANDARDIZATION', 'CLAIMS', 'SUBSCRIBER_LAST', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert subscriber last name to uppercase', TRUE),
-        ('STD005', 'Standardize Group Name', 'STANDARDIZATION', 'CLAIMS', 'GROUP_NAME', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert group name to uppercase', TRUE),
-        ('STD006', 'Standardize Provider Name', 'STANDARDIZATION', 'CLAIMS', 'PROVIDER_NAME', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert provider name to uppercase', TRUE),
-        ('STD007', 'Trim Provider Address', 'STANDARDIZATION', 'CLAIMS', 'PROVIDER_ADDRESS', 'TRIM', NULL::VARIANT, 110, 'LOG', 'Remove leading/trailing whitespace from provider address', TRUE),
-        ('STD008', 'Standardize Claim Type', 'STANDARDIZATION', 'CLAIMS', 'CLAIM_TYPE', 'UPPER', NULL::VARIANT, 110, 'LOG', 'Convert claim type to uppercase', TRUE),
-        ('STD009', 'Standardize Plan Type', 'STANDARDIZATION', 'CLAIMS', 'PLAN_TYPE', 'UPPER', NULL::VARIANT, 110, 'LOG', 'Convert plan type to uppercase', TRUE)
-    ) AS t (rule_id, rule_name, rule_type, target_table, target_column, rule_logic, rule_parameters, priority, error_action, description, active)
+        -- Data Quality Rules (TPA-specific for provider_a)
+        ('DQ001', 'Validate First Name Not Null', 'DATA_QUALITY', 'CLAIMS', 'FIRST_NAME', 'provider_a', 'IS NOT NULL', NULL::VARIANT, 10, 'REJECT', 'Ensure patient first name is always populated', TRUE),
+        ('DQ002', 'Validate Last Name Not Null', 'DATA_QUALITY', 'CLAIMS', 'LAST_NAME', 'provider_a', 'IS NOT NULL', NULL::VARIANT, 10, 'REJECT', 'Ensure patient last name is always populated', TRUE),
+        ('DQ003', 'Validate Date of Birth Format', 'DATA_QUALITY', 'CLAIMS', 'DOB', 'provider_a', 'IS NOT NULL AND TRY_TO_DATE(DOB) IS NOT NULL', NULL::VARIANT, 20, 'QUARANTINE', 'Ensure DOB is a valid date', TRUE),
+        ('DQ004', 'Validate Claim Number Format', 'DATA_QUALITY', 'CLAIMS', 'CLAIM_NUM', 'provider_a', 'RLIKE ''^[A-Z0-9]{8,20}$''', NULL::VARIANT, 30, 'QUARANTINE', 'Claim number must be 8-20 alphanumeric characters', TRUE),
+        ('DQ005', 'Validate Billed Charges Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'BILLED_CHARGES', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Billed charges cannot be negative', TRUE),
+        ('DQ006', 'Validate Allowed Amount Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'ALLOWED_AMT', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Allowed amount cannot be negative', TRUE),
+        ('DQ007', 'Validate Deductible Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'DEDUCTIBLE', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Deductible cannot be negative', TRUE),
+        ('DQ008', 'Validate Copay Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'COPAY', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Copay cannot be negative', TRUE),
+        ('DQ009', 'Validate Coinsurance Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'COINSURANCE', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Coinsurance cannot be negative', TRUE),
+        ('DQ010', 'Validate Plan Paid Non-Negative', 'DATA_QUALITY', 'CLAIMS', 'PLAN_PAID', 'provider_a', '>= 0', NULL::VARIANT, 40, 'REJECT', 'Plan paid amount cannot be negative', TRUE),
+        ('DQ011', 'Validate Claim Type Values', 'DATA_QUALITY', 'CLAIMS', 'CLAIM_TYPE', 'provider_a', 'IN (''MEDICAL'', ''PHARMACY'', ''DENTAL'', ''VISION'', ''MENTAL_HEALTH'')', NULL::VARIANT, 50, 'LOG', 'Claim type must be one of the valid values', TRUE),
+        ('DQ012', 'Validate Plan Type Values', 'DATA_QUALITY', 'CLAIMS', 'PLAN_TYPE', 'provider_a', 'IN (''HMO'', ''PPO'', ''EPO'', ''POS'', ''HDHP'')', NULL::VARIANT, 50, 'LOG', 'Plan type must be one of the valid values', TRUE),
+        ('DQ013', 'Validate Provider NPI Format', 'DATA_QUALITY', 'CLAIMS', 'PROVIDER_NPI', 'provider_a', 'RLIKE ''^[0-9]{10}$''', NULL::VARIANT, 60, 'QUARANTINE', 'Provider NPI must be exactly 10 digits', TRUE),
+        ('DQ014', 'Validate Provider TIN Format', 'DATA_QUALITY', 'CLAIMS', 'PROVIDER_TIN', 'provider_a', 'RLIKE ''^[0-9]{9}$''', NULL::VARIANT, 60, 'QUARANTINE', 'Provider TIN must be exactly 9 digits (EIN format)', TRUE),
+        -- Standardization Rules (NULL TPA = applies to all providers)
+        ('STD001', 'Standardize First Name', 'STANDARDIZATION', 'CLAIMS', 'FIRST_NAME', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert first name to uppercase', TRUE),
+        ('STD002', 'Standardize Last Name', 'STANDARDIZATION', 'CLAIMS', 'LAST_NAME', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert last name to uppercase', TRUE),
+        ('STD003', 'Standardize Subscriber First Name', 'STANDARDIZATION', 'CLAIMS', 'SUBSCRIBER_FIRST', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert subscriber first name to uppercase', TRUE),
+        ('STD004', 'Standardize Subscriber Last Name', 'STANDARDIZATION', 'CLAIMS', 'SUBSCRIBER_LAST', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert subscriber last name to uppercase', TRUE),
+        ('STD005', 'Standardize Group Name', 'STANDARDIZATION', 'CLAIMS', 'GROUP_NAME', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert group name to uppercase', TRUE),
+        ('STD006', 'Standardize Provider Name', 'STANDARDIZATION', 'CLAIMS', 'PROVIDER_NAME', 'provider_a', 'UPPER', NULL::VARIANT, 100, 'LOG', 'Convert provider name to uppercase', TRUE),
+        ('STD007', 'Trim Provider Address', 'STANDARDIZATION', 'CLAIMS', 'PROVIDER_ADDRESS', 'provider_a', 'TRIM', NULL::VARIANT, 110, 'LOG', 'Remove leading/trailing whitespace from provider address', TRUE),
+        ('STD008', 'Standardize Claim Type', 'STANDARDIZATION', 'CLAIMS', 'CLAIM_TYPE', 'provider_a', 'UPPER', NULL::VARIANT, 110, 'LOG', 'Convert claim type to uppercase', TRUE),
+        ('STD009', 'Standardize Plan Type', 'STANDARDIZATION', 'CLAIMS', 'PLAN_TYPE', 'provider_a', 'UPPER', NULL::VARIANT, 110, 'LOG', 'Convert plan type to uppercase', TRUE)
+    ) AS t (rule_id, rule_name, rule_type, target_table, target_column, tpa, rule_logic, rule_parameters, priority, error_action, description, active)
     UNION ALL
-    SELECT 'DD001', 'Deduplicate by Claim Number', 'DEDUPLICATION', 'CLAIMS', NULL, 'CLAIM_NUM', 
+    SELECT 'DD001', 'Deduplicate by Claim Number', 'DEDUPLICATION', 'CLAIMS', NULL, 'provider_a', 'CLAIM_NUM', 
            PARSE_JSON('{"strategy": "KEEP_FIRST"}'), 300, 'LOG', 'Remove duplicate claims keeping the first occurrence', TRUE
 ) AS source
 ON target.rule_id = source.rule_id
@@ -512,6 +515,7 @@ WHEN MATCHED THEN UPDATE SET
     rule_type = source.rule_type,
     target_table = source.target_table,
     target_column = source.target_column,
+    tpa = source.tpa,
     rule_logic = source.rule_logic,
     rule_parameters = source.rule_parameters,
     priority = source.priority,
@@ -520,10 +524,10 @@ WHEN MATCHED THEN UPDATE SET
     active = source.active,
     updated_timestamp = CURRENT_TIMESTAMP()
 WHEN NOT MATCHED THEN INSERT (
-    rule_id, rule_name, rule_type, target_table, target_column,
+    rule_id, rule_name, rule_type, target_table, target_column, tpa,
     rule_logic, rule_parameters, priority, error_action, description, active
 ) VALUES (
-    source.rule_id, source.rule_name, source.rule_type, source.target_table, source.target_column,
+    source.rule_id, source.rule_name, source.rule_type, source.target_table, source.target_column, source.tpa,
     source.rule_logic, source.rule_parameters, source.priority, source.error_action, source.description, source.active
 );
 
@@ -632,3 +636,89 @@ ORDER BY updated_timestamp DESC NULLS LAST;
 
 COMMENT ON VIEW v_watermark_status IS 'Processing watermark status showing last processed timestamps and staleness indicators. Helps monitor incremental processing health.';
 
+-- View: Field Mappings by TPA
+CREATE OR REPLACE VIEW v_field_mappings_by_tpa AS
+SELECT 
+    mapping_id,
+    source_field,
+    source_table,
+    target_table,
+    target_column,
+    COALESCE(tpa, 'ALL') AS tpa,
+    mapping_method,
+    confidence_score,
+    transformation_logic,
+    approved,
+    approved_by,
+    approved_timestamp,
+    description,
+    created_timestamp,
+    updated_timestamp
+FROM field_mappings
+WHERE approved = TRUE
+ORDER BY tpa, target_table, source_field;
+
+COMMENT ON VIEW v_field_mappings_by_tpa IS 'Approved field mappings organized by TPA (provider). Shows TPA-specific mappings and global mappings (TPA=ALL).';
+
+-- View: Transformation Rules by TPA
+CREATE OR REPLACE VIEW v_transformation_rules_by_tpa AS
+SELECT 
+    rule_id,
+    rule_name,
+    rule_type,
+    target_table,
+    target_column,
+    COALESCE(tpa, 'ALL') AS tpa,
+    rule_logic,
+    rule_parameters,
+    priority,
+    error_action,
+    active,
+    description,
+    created_timestamp,
+    updated_timestamp
+FROM transformation_rules
+WHERE active = TRUE
+ORDER BY tpa, priority, rule_id;
+
+COMMENT ON VIEW v_transformation_rules_by_tpa IS 'Active transformation rules organized by TPA (provider) and priority. Shows TPA-specific rules and global rules (TPA=ALL).';
+
+-- View: Unmapped Target Fields (with TPA awareness)
+CREATE OR REPLACE VIEW v_unmapped_target_fields AS
+WITH target_fields AS (
+    SELECT DISTINCT 
+        table_name,
+        column_name
+    FROM target_schemas
+    WHERE active = TRUE
+),
+mapped_fields AS (
+    SELECT DISTINCT
+        target_table,
+        target_column,
+        tpa
+    FROM field_mappings
+    WHERE approved = TRUE
+)
+SELECT 
+    tf.table_name,
+    tf.column_name,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM mapped_fields mf 
+            WHERE mf.target_table = tf.table_name 
+            AND mf.target_column = tf.column_name 
+            AND mf.tpa IS NULL
+        ) THEN 'Mapped (Global)'
+        ELSE 'Unmapped'
+    END AS mapping_status,
+    ARRAY_AGG(DISTINCT mf.tpa) WITHIN GROUP (ORDER BY mf.tpa) AS mapped_for_tpas
+FROM target_fields tf
+LEFT JOIN mapped_fields mf 
+    ON tf.table_name = mf.target_table 
+    AND tf.column_name = mf.target_column
+    AND mf.tpa IS NOT NULL
+GROUP BY tf.table_name, tf.column_name
+ORDER BY tf.table_name, tf.column_name;
+
+COMMENT ON VIEW v_unmapped_target_fields IS 'Shows target table columns that have no field mappings defined. Useful for identifying gaps in mapping coverage and ensuring all required fields are mapped from Bronze sources. Shows which TPAs have mappings for each field.';

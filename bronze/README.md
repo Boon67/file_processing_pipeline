@@ -73,9 +73,10 @@ archive_old_files_task (Daily 2 AM)
 - `@STREAMLIT_STAGE` - Streamlit app files
 - `@CONFIG_STAGE` - Configuration files
 
-**Tables (2)**
-- `RAW_DATA_TABLE` - Stores ingested data as VARIANT with metadata
+**Tables (3)**
+- `RAW_DATA_TABLE` - Stores ingested data as VARIANT with metadata and TPA
 - `file_processing_queue` - Tracks file processing status and audit trail
+- `TPA_MASTER` - Master reference table for Third Party Administrators
 
 **Stored Procedures (4)**
 - `process_single_csv_file()` - Python procedure for CSV parsing
@@ -119,10 +120,11 @@ bronze/
 **2_Bronze_Schema_Tables.sql**
 - Creates BRONZE schema
 - Creates 6 stages (SRC, COMPLETED, ERROR, ARCHIVE, STREAMLIT, CONFIG)
-- Creates RAW_DATA_TABLE with VARIANT column
+- Creates TPA_MASTER reference table with default TPAs
+- Creates RAW_DATA_TABLE with VARIANT column and TPA (NOT NULL)
 - Creates file_processing_queue table
 - Defines Python procedures for CSV/Excel parsing
-- ~400 lines
+- ~450 lines
 
 **3_Bronze_Setup_Logic.sql**
 - Creates SQL orchestration procedures
@@ -308,8 +310,11 @@ move_successful   move_failed    archive_old_files
 ### Prerequisites
 
 - Snowflake account with `SYSADMIN` and `SECURITYADMIN` roles
+- `ACCOUNTADMIN` role (one-time setup for task privileges)
 - Snowflake CLI installed: `pip install snowflake-cli-labs`
 - Access to a warehouse (default: `COMPUTE_WH`)
+
+> **Note**: ACCOUNTADMIN is only needed for the first deployment to grant EXECUTE TASK privileges. See [TASK_PRIVILEGE_FIX.md](TASK_PRIVILEGE_FIX.md) for details.
 
 ### Deployment
 
@@ -326,13 +331,30 @@ move_successful   move_failed    archive_old_files
 **Option 1: Streamlit UI (Recommended)**
 1. Open Snowsight → Streamlit → BRONZE_INGESTION_PIPELINE
 2. Go to "Upload Files" tab
-3. Drag and drop CSV/Excel files
-4. Files are automatically processed
+3. **Select TPA (Third Party Administrator)**
+   - Choose from predefined providers (provider_a, provider_b, etc.)
+   - Or select "custom" to enter a custom TPA name
+   - The TPA determines the subfolder where files are uploaded
+4. Drag and drop CSV/Excel files
+5. Files are automatically uploaded to `@SRC/{tpa_name}/`
+6. Files are automatically processed with TPA metadata
+
+**TPA Folder Structure:**
+```
+@SRC/
+├── provider_a/
+│   ├── dental-claims-20240301.csv
+│   └── medical-claims-20240315.csv
+├── provider_b/
+│   └── claims-20240115.csv
+└── provider_c/
+    └── medical-claims-20240215.xlsx
+```
 
 **Option 2: SQL**
 ```sql
--- Upload file to source stage
-PUT file:///path/to/data.csv @SRC;
+-- Upload file to source stage with TPA folder
+PUT file:///path/to/data.csv @SRC/provider_a/;
 
 -- Verify upload
 SELECT * FROM DIRECTORY(@SRC);
@@ -340,6 +362,8 @@ SELECT * FROM DIRECTORY(@SRC);
 -- Trigger discovery (or wait for scheduled task)
 EXECUTE TASK discover_files_task;
 ```
+
+**Note:** The TPA value from the folder structure is automatically extracted and stored in the `TPA` column of the `RAW_DATA_TABLE`, enabling TPA-specific processing and mapping rules in the Silver layer.
 
 ### Monitor Processing
 
@@ -518,22 +542,35 @@ CALL process_queued_files();
 ### Features
 
 **Upload Files Tab**
+- **TPA Selection**: Choose Third Party Administrator from dropdown or enter custom name
+- **Folder Organization**: Files automatically uploaded to TPA-specific subfolders
 - Drag-and-drop file upload
 - Multi-file upload support
 - Upload progress indicator
 - Automatic processing notification
+- Real-time TPA metadata tracking
 
 **Processing Status Tab**
-- Real-time queue status
-- Processing statistics
-- File-by-file status breakdown
+- Real-time queue status with TPA information
+- Processing statistics by status
+- File-by-file status breakdown with TPA column
+- Filter by status, file type, and TPA
 - Error details for failed files
+- Download results as CSV
 
 **File Stages Tab**
 - Browse all stages (`@SRC`, `@COMPLETED`, `@ERROR`, `@ARCHIVE`)
 - File count per stage
 - File details (size, modified date)
 - Stage management
+
+**Raw Data Viewer Tab** (NEW)
+- View RAW_DATA_TABLE contents with filtering
+- Filter by TPA and file name
+- Pagination support (50-1000 rows)
+- JSON data display
+- Download filtered data as CSV
+- Summary metrics (total rows, files, TPAs)
 
 **Task Management Tab**
 - View all task status
@@ -753,6 +790,20 @@ GROUP BY status;
 ```
 
 ### Common Issues
+
+**Issue: Cannot execute task - EXECUTE TASK privilege error**
+```
+091089 (23001): Cannot execute task, EXECUTE TASK privilege must be granted to owner role
+```
+
+**Solution**: Run the one-time fix as ACCOUNTADMIN:
+```bash
+snow sql -f bronze/Fix_Task_Privileges.sql
+```
+
+Then resume your tasks. See [TASK_PRIVILEGE_FIX.md](TASK_PRIVILEGE_FIX.md) for details.
+
+---
 
 **Issue: Files not being discovered**
 ```sql
