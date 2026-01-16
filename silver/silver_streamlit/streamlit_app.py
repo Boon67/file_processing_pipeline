@@ -18,7 +18,90 @@ session = get_active_session()
 APP_TITLE = "Silver Transformation Manager"
 APP_ICON = "🥈"
 
-# Set up sidebar navigation FIRST (before any other sidebar content)
+# Custom CSS for dark header and styling
+st.markdown("""
+    <style>
+    /* Hide default Streamlit header */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #f8fafc;
+    }
+    
+    /* TPA selector styling */
+    .stSelectbox {
+        margin-top: 0 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Get list of TPAs
+@st.cache_data(ttl=300)
+def get_tpa_list(_session):
+    """Get list of active TPAs from TPA_MASTER table"""
+    try:
+        query = """
+            SELECT TPA_CODE, TPA_NAME, TPA_DESCRIPTION
+            FROM BRONZE.TPA_MASTER
+            WHERE ACTIVE = TRUE
+            ORDER BY TPA_CODE
+        """
+        result = _session.sql(query).collect()
+        return [(row['TPA_CODE'], row['TPA_NAME']) for row in result]
+    except Exception as e:
+        st.error(f"Error loading TPAs: {e}")
+        return []
+
+tpa_list = get_tpa_list(session)
+
+# Create header with TPA selector
+col1, col2, col3 = st.columns([1, 2, 1])
+
+with col1:
+    st.markdown("""
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+            <div style="background-color: white; color: #0f172a; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                🗄️
+            </div>
+            <div style="font-size: 1.25rem; font-weight: bold; color: #0f172a;">
+                Snowflake Pipeline
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    if tpa_list:
+        # Initialize session state for TPA if not exists
+        if 'selected_tpa' not in st.session_state:
+            st.session_state.selected_tpa = tpa_list[0][0]
+        
+        # TPA selector
+        tpa_options = {f"{name}": code for code, name in tpa_list}
+        selected_tpa_name = st.selectbox(
+            "TPA",
+            options=list(tpa_options.keys()),
+            index=list(tpa_options.values()).index(st.session_state.selected_tpa) if st.session_state.selected_tpa in tpa_options.values() else 0,
+            key="tpa_selector",
+            label_visibility="collapsed"
+        )
+        st.session_state.selected_tpa = tpa_options[selected_tpa_name]
+    else:
+        st.warning("⚠️ No TPAs found. Please configure TPAs in TPA_MASTER table.")
+        st.session_state.selected_tpa = None
+
+with col3:
+    st.markdown("""
+        <div style="text-align: right; margin-top: 1rem;">
+            <span style="color: #64748b; font-size: 0.875rem;">🥈 Silver Layer</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# Set up sidebar navigation
 st.sidebar.title("📑 Navigation")
 page = st.sidebar.radio(
     "Select a page:",
@@ -786,26 +869,26 @@ if page == "🗺️ Field Mapper":
         with col3:
             st.markdown("<br>", unsafe_allow_html=True)  # Spacer for alignment
         
-        # Build query with optional table filter and sorting
+        # Build query with optional table filter, TPA filter, and sorting
         sort_clause = sort_options[selected_sort]
         
+        # Build WHERE clause
+        where_clauses = []
         if selected_filter_table != "(All Tables)":
-            mappings_query = f"""
+            where_clauses.append(f"target_table = '{selected_filter_table}'")
+        if st.session_state.selected_tpa:
+            where_clauses.append(f"tpa = '{st.session_state.selected_tpa}'")
+        
+        where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        
+        mappings_query = f"""
             SELECT mapping_id, source_table, source_field, target_table, target_column,
                    mapping_method, confidence_score, approved, approved_by, approved_timestamp,
-                   transformation_logic, description, created_timestamp
+                   transformation_logic, description, created_timestamp, tpa
                 FROM {DB_SILVER}.field_mappings
-                WHERE target_table = '{selected_filter_table}'
+                {where_clause}
             ORDER BY {sort_clause}
-            """
-        else:
-            mappings_query = f"""
-                SELECT mapping_id, source_table, source_field, target_table, target_column,
-                       mapping_method, confidence_score, approved, approved_by, approved_timestamp,
-                       transformation_logic, description, created_timestamp
-                FROM {DB_SILVER}.field_mappings
-                ORDER BY {sort_clause}
-            """
+        """
         
         mappings_df = execute_query(mappings_query)
         

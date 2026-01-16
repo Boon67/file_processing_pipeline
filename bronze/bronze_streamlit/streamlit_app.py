@@ -27,36 +27,61 @@ import time
 
 # Page configuration
 st.set_page_config(
-    page_title="File Processing Pipeline",
-    page_icon="📁",
+    page_title="Snowflake Pipeline",
+    page_icon="🗄️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Set up sidebar navigation FIRST (before any other sidebar content)
-st.sidebar.title("📑 Navigation")
-page = st.sidebar.radio(
-    "Select a page:",
-    [
-        "📤 Upload Files",
-        "📊 Processing Status",
-        "📂 File Stages",
-        "📋 Raw Data Viewer",
-        "⚙️ Task Management"
-    ],
-    label_visibility="collapsed"
-)
-st.sidebar.markdown("---")
-
-# Custom CSS
+# Custom CSS for dark header and styling
 st.markdown("""
     <style>
+    /* Hide default Streamlit header */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Dark header styling */
     .main-header {
-        font-size: 2.5rem;
-        color: #1E88E5;
-        font-weight: bold;
-        margin-bottom: 1rem;
+        background-color: #0f172a;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        margin: -1rem -1rem 2rem -1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.25rem;
+        font-weight: bold;
+    }
+    .header-icon {
+        background-color: white;
+        color: #0f172a;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #f8fafc;
+    }
+    
+    /* Success/Error/Info boxes */
     .success-box {
         padding: 1rem;
         border-radius: 0.5rem;
@@ -81,6 +106,11 @@ st.markdown("""
         color: #0C5460;
         margin: 1rem 0;
     }
+    
+    /* TPA selector styling */
+    .stSelectbox {
+        margin-top: 0 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -92,6 +122,86 @@ def get_snowflake_session():
     except Exception as e:
         st.error(f"Error getting Snowflake session: {e}")
         return None
+
+session = get_snowflake_session()
+
+# Get list of TPAs
+@st.cache_data(ttl=300)
+def get_tpa_list(_session):
+    """Get list of active TPAs from TPA_MASTER table"""
+    try:
+        query = """
+            SELECT TPA_CODE, TPA_NAME, TPA_DESCRIPTION
+            FROM BRONZE.TPA_MASTER
+            WHERE ACTIVE = TRUE
+            ORDER BY TPA_CODE
+        """
+        result = _session.sql(query).collect()
+        return [(row['TPA_CODE'], row['TPA_NAME']) for row in result]
+    except Exception as e:
+        st.error(f"Error loading TPAs: {e}")
+        return []
+
+tpa_list = get_tpa_list(session)
+
+# Create header with TPA selector
+col1, col2, col3 = st.columns([1, 2, 1])
+
+with col1:
+    st.markdown("""
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+            <div style="background-color: white; color: #0f172a; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                🗄️
+            </div>
+            <div style="font-size: 1.25rem; font-weight: bold; color: #0f172a;">
+                Snowflake Pipeline
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    if tpa_list:
+        # Initialize session state for TPA if not exists
+        if 'selected_tpa' not in st.session_state:
+            st.session_state.selected_tpa = tpa_list[0][0]
+        
+        # TPA selector
+        tpa_options = {f"{name}": code for code, name in tpa_list}
+        selected_tpa_name = st.selectbox(
+            "TPA",
+            options=list(tpa_options.keys()),
+            index=list(tpa_options.values()).index(st.session_state.selected_tpa) if st.session_state.selected_tpa in tpa_options.values() else 0,
+            key="tpa_selector",
+            label_visibility="collapsed"
+        )
+        st.session_state.selected_tpa = tpa_options[selected_tpa_name]
+    else:
+        st.warning("⚠️ No TPAs found. Please configure TPAs in TPA_MASTER table.")
+        st.session_state.selected_tpa = None
+
+with col3:
+    st.markdown("""
+        <div style="text-align: right; margin-top: 1rem;">
+            <span style="color: #64748b; font-size: 0.875rem;">🥉 Bronze Layer</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# Set up sidebar navigation
+st.sidebar.title("📑 Navigation")
+page = st.sidebar.radio(
+    "Select a page:",
+    [
+        "📤 Upload Files",
+        "📊 Processing Status",
+        "📂 File Stages",
+        "📋 Raw Data Viewer",
+        "⚙️ Task Management"
+    ],
+    label_visibility="collapsed"
+)
+st.sidebar.markdown("---")
 
 # Load configuration from Snowflake stage
 @st.cache_data(ttl=300)
@@ -228,9 +338,20 @@ def get_processed_files_summary(session, database_name, schema_name):
         st.error(f"Error fetching processed files: {e}")
         return pd.DataFrame()
 
-def get_processed_files_stats(session, database_name, schema_name):
-    """Get statistics about processed files"""
+def get_processed_files_stats(session, database_name, schema_name, tpa_code=None):
+    """Get statistics about processed files, optionally filtered by TPA"""
     try:
+        # Build WHERE clause for TPA filter
+        tpa_filter = ""
+        if tpa_code:
+            tpa_filter = f"""
+            WHERE fpq.file_name IN (
+                SELECT DISTINCT file_name 
+                FROM {database_name}.{schema_name}.RAW_DATA_TABLE 
+                WHERE tpa = '{tpa_code}'
+            )
+            """
+        
         query = f"""
         SELECT 
             COUNT(*) as total_files,
@@ -241,7 +362,8 @@ def get_processed_files_stats(session, database_name, schema_name):
             SUM(CASE WHEN process_result LIKE '%rows%' THEN 
                 TRY_CAST(REGEXP_SUBSTR(process_result, '[0-9]+') AS INTEGER) 
                 ELSE 0 END) as total_rows_processed
-        FROM {database_name}.{schema_name}.file_processing_queue
+        FROM {database_name}.{schema_name}.file_processing_queue fpq
+        {tpa_filter}
         """
         result = session.sql(query).to_pandas()
         
@@ -708,7 +830,8 @@ def main():
             st.rerun()
         
         # Get statistics (this will refresh each time the tab is rendered)
-        stats_df = get_processed_files_stats(session, database, schema)
+        # Filter by selected TPA
+        stats_df = get_processed_files_stats(session, database, schema, st.session_state.selected_tpa)
         
         if not stats_df.empty:
             # Display summary metrics
@@ -735,12 +858,16 @@ def main():
         
         st.markdown("---")
         
-        # Get all processed files first (needed for TPA filter options)
+        # Get all processed files first
         files_df = get_processed_files_summary(session, database, schema)
         
         if not files_df.empty:
-            # Filter options
-            col1, col2, col3 = st.columns([2, 2, 2])
+            # Filter by selected TPA from header
+            if st.session_state.selected_tpa:
+                files_df = files_df[files_df['tpa'] == st.session_state.selected_tpa]
+            
+            # Filter options (Status and File Type only - TPA is in header)
+            col1, col2 = st.columns([3, 3])
             
             with col1:
                 status_filter = st.multiselect(
@@ -756,22 +883,11 @@ def main():
                     default=["CSV", "EXCEL"]
                 )
             
-            with col3:
-                # Get unique TPAs from the data
-                tpa_options = sorted(files_df['tpa'].unique().tolist())
-                tpa_filter = st.multiselect(
-                    "Filter by TPA",
-                    options=tpa_options,
-                    default=tpa_options
-                )
-            
             # Apply filters
             if status_filter:
                 files_df = files_df[files_df['status'].isin(status_filter)]
             if file_type_filter:
                 files_df = files_df[files_df['file_type'].isin(file_type_filter)]
-            if tpa_filter:
-                files_df = files_df[files_df['tpa'].isin(tpa_filter)]
             
             # Display count
             st.markdown(f"**Showing {len(files_df)} files**")
