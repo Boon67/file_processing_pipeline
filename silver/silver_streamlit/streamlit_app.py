@@ -66,14 +66,13 @@ with col1:
         if 'selected_tpa' not in st.session_state:
             st.session_state.selected_tpa = tpa_list[0][0]
         
-        # TPA selector
+        # TPA selector with label
         tpa_options = {f"{name}": code for code, name in tpa_list}
         selected_tpa_name = st.selectbox(
-            "TPA",
+            "TPA:",
             options=list(tpa_options.keys()),
             index=list(tpa_options.values()).index(st.session_state.selected_tpa) if st.session_state.selected_tpa in tpa_options.values() else 0,
-            key="tpa_selector",
-            label_visibility="collapsed"
+            key="tpa_selector"
         )
         st.session_state.selected_tpa = tpa_options[selected_tpa_name]
         st.session_state.selected_tpa_name = selected_tpa_name
