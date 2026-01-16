@@ -289,16 +289,39 @@ def auto_map_fields_ml(session, source_table, target_table, top_n, min_confidenc
     if results_df.empty:
         return f"No mappings found above confidence threshold {min_confidence}"
     
-    # Insert directly into field_mappings table
+    # Insert directly into field_mappings table (skip duplicates)
     rows_inserted = 0
+    rows_skipped = 0
     for _, row in results_df.iterrows():
         transformation_logic = f"Scores: Exact={row['EXACT_SCORE']}, Substring={row['SUBSTRING_SCORE']}, Sequence={row['SEQUENCE_SCORE']}, WordOverlap={row['WORD_OVERLAP']}, TFIDF={row['TFIDF_SCORE']}, Rank={row['MATCH_RANK']}"
         
+        # Check if mapping already exists (based on unique constraint: source_field, target_table, target_column, tpa)
+        check_query = f"""
+            SELECT COUNT(*) as cnt
+            FROM field_mappings
+            WHERE source_field = '{row['SOURCE_FIELD']}'
+              AND target_table = '{row['TARGET_TABLE']}'
+              AND target_column = '{row['TARGET_COLUMN']}'
+              AND tpa = '{tpa}'
+        """
+        
+        try:
+            check_result = session.sql(check_query).collect()
+            if check_result[0]['CNT'] > 0:
+                # Mapping already exists, skip it
+                rows_skipped += 1
+                continue
+        except Exception as e:
+            # If check fails, skip this mapping
+            rows_skipped += 1
+            continue
+        
+        # Insert new mapping
         insert_query = f"""
             INSERT INTO field_mappings (
                 source_field, source_table, target_table, target_column,
                 mapping_method, confidence_score, approved,
-                transformation_logic
+                transformation_logic, tpa
             )
             VALUES (
                 '{row['SOURCE_FIELD']}',
@@ -308,7 +331,8 @@ def auto_map_fields_ml(session, source_table, target_table, top_n, min_confidenc
                 'ML_AUTO',
                 {row['COMBINED_SCORE']},
                 FALSE,
-                '{transformation_logic}'
+                '{transformation_logic}',
+                '{tpa}'
             )
         """
         
@@ -317,10 +341,12 @@ def auto_map_fields_ml(session, source_table, target_table, top_n, min_confidenc
             rows_inserted += 1
         except Exception as e:
             # Skip duplicates or other errors
+            rows_skipped += 1
             pass
     
     table_msg = f" for {target_table}" if target_table else " for all tables"
-    return f"Successfully generated {rows_inserted} ML-based field mappings{table_msg} (top {top_n} per field, min confidence {min_confidence})"
+    skip_msg = f" ({rows_skipped} skipped as duplicates)" if rows_skipped > 0 else ""
+    return f"Successfully generated {rows_inserted} ML-based field mappings{table_msg} (top {top_n} per field, min confidence {min_confidence}){skip_msg}"
 $$;
 
 -- ============================================
@@ -506,11 +532,33 @@ def auto_map_fields_llm(session, source_table, target_table, model_name, custom_
                 skipped_columns.append(f"{target_column} (suggested by LLM but not in schema)")
                 continue
             
+            # Check if mapping already exists (based on unique constraint: source_field, target_table, target_column, tpa)
+            check_query = f"""
+                SELECT COUNT(*) as cnt
+                FROM field_mappings
+                WHERE source_field = '{source_field}'
+                  AND target_table = '{target_table_name}'
+                  AND target_column = '{target_column}'
+                  AND tpa = '{tpa}'
+            """
+            
+            try:
+                check_result = session.sql(check_query).collect()
+                if check_result[0]['CNT'] > 0:
+                    # Mapping already exists, skip it
+                    rows_skipped += 1
+                    continue
+            except Exception as e:
+                # If check fails, skip this mapping
+                rows_skipped += 1
+                continue
+            
+            # Insert new mapping
             insert_query = f"""
                 INSERT INTO field_mappings (
                     source_field, source_table, target_table, target_column,
                     mapping_method, confidence_score, approved,
-                    description
+                    description, tpa
                 )
                 VALUES (
                     '{source_field}',
@@ -520,7 +568,8 @@ def auto_map_fields_llm(session, source_table, target_table, model_name, custom_
                     'LLM_CORTEX',
                     {confidence},
                     FALSE,
-                    'LLM: {model_name} - {reasoning}'
+                    'LLM: {model_name} - {reasoning}',
+                    '{tpa}'
                 )
             """
             
