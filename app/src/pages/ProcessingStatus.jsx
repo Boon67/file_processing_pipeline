@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, Download } from 'lucide-react'
 import { bronzeService } from '../services/bronze'
@@ -10,18 +10,29 @@ import { format } from 'date-fns'
 function ProcessingStatus() {
   const [statusFilter, setStatusFilter] = useState(['SUCCESS', 'FAILED', 'PROCESSING', 'PENDING'])
   const [fileTypeFilter, setFileTypeFilter] = useState(['CSV', 'EXCEL'])
-  const [tpaFilter, setTpaFilter] = useState([])
+  const [selectedTpa, setSelectedTpa] = useState(localStorage.getItem('selectedTpa') || '')
 
-  // Fetch files
+  // Listen for TPA changes from header
+  useEffect(() => {
+    const handleTpaChange = (event) => {
+      setSelectedTpa(event.detail)
+    }
+    
+    window.addEventListener('tpaChanged', handleTpaChange)
+    return () => window.removeEventListener('tpaChanged', handleTpaChange)
+  }, [])
+
+  // Fetch files filtered by TPA
   const { data: filesData, isLoading, refetch } = useQuery({
-    queryKey: ['files'],
-    queryFn: () => bronzeService.getFiles(),
+    queryKey: ['files', selectedTpa],
+    queryFn: () => bronzeService.getFiles({ tpa: selectedTpa }),
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+    enabled: !!selectedTpa,
   })
 
   // Fetch summary stats
   const { data: summaryData } = useQuery({
-    queryKey: ['summary'],
+    queryKey: ['summary', selectedTpa],
     queryFn: () => bronzeService.getSummary(),
     refetchInterval: 30000,
   })
@@ -30,20 +41,11 @@ function ProcessingStatus() {
   const summary = summaryData?.files || {}
   const rawData = summaryData?.rawData || {}
 
-  // Get unique TPAs from files
-  const uniqueTpas = [...new Set(files.map(f => f.tpa).filter(Boolean))].sort()
-  
-  // Initialize TPA filter with all TPAs
-  if (tpaFilter.length === 0 && uniqueTpas.length > 0) {
-    setTpaFilter(uniqueTpas)
-  }
-
-  // Apply filters
+  // Apply filters (excluding TPA since it's filtered globally)
   const filteredFiles = files.filter(file => {
     const statusMatch = statusFilter.includes(file.status)
     const typeMatch = fileTypeFilter.includes(file.file_type)
-    const tpaMatch = !file.tpa || tpaFilter.includes(file.tpa)
-    return statusMatch && typeMatch && tpaMatch
+    return statusMatch && typeMatch
   })
 
   const handleRefresh = () => {
@@ -170,7 +172,7 @@ function ProcessingStatus() {
 
       {/* Filters */}
       <Card title="Filters">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -220,32 +222,6 @@ function ProcessingStatus() {
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* TPA Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Filter by TPA
-            </label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {uniqueTpas.map(tpa => (
-                <label key={tpa} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={tpaFilter.includes(tpa)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setTpaFilter([...tpaFilter, tpa])
-                      } else {
-                        setTpaFilter(tpaFilter.filter(t => t !== tpa))
-                      }
-                    }}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">{tpa}</span>
                 </label>
               ))}
             </div>
