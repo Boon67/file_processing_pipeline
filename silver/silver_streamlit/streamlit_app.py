@@ -58,21 +58,9 @@ def get_tpa_list(_session):
 tpa_list = get_tpa_list(session)
 
 # Create header with TPA selector
-col1, col2, col3 = st.columns([1, 2, 1])
+col1, col2 = st.columns([3, 1])
 
 with col1:
-    st.markdown("""
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-            <div style="background-color: white; color: #0f172a; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
-                🗄️
-            </div>
-            <div style="font-size: 1.25rem; font-weight: bold; color: #0f172a;">
-                Snowflake Pipeline
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col2:
     if tpa_list:
         # Initialize session state for TPA if not exists
         if 'selected_tpa' not in st.session_state:
@@ -88,11 +76,13 @@ with col2:
             label_visibility="collapsed"
         )
         st.session_state.selected_tpa = tpa_options[selected_tpa_name]
+        st.session_state.selected_tpa_name = selected_tpa_name
     else:
         st.warning("⚠️ No TPAs found. Please configure TPAs in TPA_MASTER table.")
         st.session_state.selected_tpa = None
+        st.session_state.selected_tpa_name = "No TPA"
 
-with col3:
+with col2:
     st.markdown("""
         <div style="text-align: right; margin-top: 1rem;">
             <span style="color: #64748b; font-size: 0.875rem;">🥈 Silver Layer</span>

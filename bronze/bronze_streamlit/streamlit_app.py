@@ -145,21 +145,9 @@ def get_tpa_list(_session):
 tpa_list = get_tpa_list(session)
 
 # Create header with TPA selector
-col1, col2, col3 = st.columns([1, 2, 1])
+col1, col2 = st.columns([3, 1])
 
 with col1:
-    st.markdown("""
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-            <div style="background-color: white; color: #0f172a; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
-                🗄️
-            </div>
-            <div style="font-size: 1.25rem; font-weight: bold; color: #0f172a;">
-                Snowflake Pipeline
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-with col2:
     if tpa_list:
         # Initialize session state for TPA if not exists
         if 'selected_tpa' not in st.session_state:
@@ -175,11 +163,13 @@ with col2:
             label_visibility="collapsed"
         )
         st.session_state.selected_tpa = tpa_options[selected_tpa_name]
+        st.session_state.selected_tpa_name = selected_tpa_name
     else:
         st.warning("⚠️ No TPAs found. Please configure TPAs in TPA_MASTER table.")
         st.session_state.selected_tpa = None
+        st.session_state.selected_tpa_name = "No TPA"
 
-with col3:
+with col2:
     st.markdown("""
         <div style="text-align: right; margin-top: 1rem;">
             <span style="color: #64748b; font-size: 0.875rem;">🥉 Bronze Layer</span>
@@ -652,44 +642,17 @@ def main():
     # Tab 1: Upload Files
     if page == "📤 Upload Files":
         st.subheader("Upload Files")
+        st.markdown("Upload CSV and Excel files to the Snowflake ingestion pipeline")
         
-        # TPA Selection
-        st.markdown("### 🏢 Select Third Party Administrator (TPA)")
-        st.info("💡 The TPA determines the subfolder where files will be uploaded. This helps organize files by provider and enables TPA-specific processing rules.")
-        
-        # Load TPA list from database
-        tpa_df = get_tpa_list(session, database, schema)
-        
-        if tpa_df.empty:
-            st.error("❌ No TPAs found in database. Please contact your administrator to add TPAs to the TPA_MASTER table.")
+        # Use TPA from header selection
+        if not st.session_state.selected_tpa:
+            st.error("❌ No TPA selected. Please select a TPA from the dropdown at the top of the page.")
             st.stop()
         
-        # Create TPA options dictionary for display
-        tpa_options_dict = {}
-        for _, row in tpa_df.iterrows():
-            tpa_code = row['tpa_code']
-            tpa_name = row['tpa_name']
-            tpa_options_dict[f"{tpa_code} - {tpa_name}"] = tpa_code
+        tpa_folder = st.session_state.selected_tpa
         
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            selected_tpa_display = st.selectbox(
-                "Select TPA *",
-                options=list(tpa_options_dict.keys()),
-                help="Choose the Third Party Administrator for these files (required)"
-            )
-            
-            # Get the TPA code from the selected display value
-            tpa_folder = tpa_options_dict[selected_tpa_display]
-        
-        with col2:
-            st.text_input("TPA Code", value=tpa_folder, disabled=True, help="Files will be uploaded to this subfolder")
-        
-        # Show TPA description if available
-        selected_tpa_row = tpa_df[tpa_df['tpa_code'] == tpa_folder]
-        if not selected_tpa_row.empty and pd.notna(selected_tpa_row.iloc[0]['tpa_description']):
-            st.caption(f"ℹ️ {selected_tpa_row.iloc[0]['tpa_description']}")
+        # Show selected TPA info
+        st.info(f"💡 Files will be uploaded for **{st.session_state.selected_tpa_name}** (TPA Code: `{tpa_folder}`)")
         
         st.markdown("---")
         
