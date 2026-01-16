@@ -413,7 +413,8 @@ if not deployment_status['is_deployed']:
 
 if page == "📐 Target Table Designer":
     st.markdown("### 📐 Target Table Designer")
-    st.markdown("Define target tables for the Silver layer")
+    tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+    st.markdown(f"Define target tables for the Silver layer{tpa_msg}")
     
     # Add custom CSS for compact layout
     st.markdown("""
@@ -459,8 +460,9 @@ if page == "📐 Target Table Designer":
         </style>
     """, unsafe_allow_html=True)
     
-    # Get table summary
-    summary_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_target_schemas_summary ORDER BY table_name")
+    # Get table summary (filtered by TPA)
+    tpa_filter = f"WHERE tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+    summary_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_target_schemas_summary {tpa_filter} ORDER BY table_name")
     
     # Two-column layout: Table selector on left, Details on right
     col_left, col_right = st.columns([1, 3])
@@ -574,22 +576,27 @@ if page == "📐 Target Table Designer":
                         # Process default value
                         processed_default = None if first_default_value == "(None)" else first_default_value
                         
-                        # Insert first column
-                        insert_query = f"""
-                            INSERT INTO {DB_SILVER}.target_schemas (
-                                table_name, column_name, data_type, nullable,
-                                default_value, description, active
-                            )
-                            VALUES (
-                                '{new_table_name.upper()}',
-                                '{first_column_name.upper()}',
-                                '{first_data_type}',
-                                {first_nullable},
-                                {f"'{processed_default}'" if processed_default else 'NULL'},
-                                {f"'{first_description}'" if first_description else 'NULL'},
-                                TRUE
-                            )
-                        """
+                        # Validate TPA is selected
+                        if not st.session_state.selected_tpa:
+                            st.error("❌ Please select a TPA from the dropdown at the top of the page before creating tables.")
+                        else:
+                            # Insert first column
+                            insert_query = f"""
+                                INSERT INTO {DB_SILVER}.target_schemas (
+                                    table_name, column_name, data_type, nullable,
+                                    default_value, description, active, tpa
+                                )
+                                VALUES (
+                                    '{new_table_name.upper()}',
+                                    '{first_column_name.upper()}',
+                                    '{first_data_type}',
+                                    {first_nullable},
+                                    {f"'{processed_default}'" if processed_default else 'NULL'},
+                                    {f"'{first_description}'" if first_description else 'NULL'},
+                                    TRUE,
+                                    '{st.session_state.selected_tpa}'
+                                )
+                            """
                         execute_query(insert_query)
                         
                         # Automatically add standard metadata columns
@@ -604,7 +611,7 @@ if page == "📐 Target Table Designer":
                             std_col_query = f"""
                                 INSERT INTO {DB_SILVER}.target_schemas (
                                     table_name, column_name, data_type, nullable,
-                                    default_value, description, active
+                                    default_value, description, active, tpa
                                 )
                                 VALUES (
                                     '{new_table_name.upper()}',
@@ -613,7 +620,8 @@ if page == "📐 Target Table Designer":
                                     {nullable},
                                     {f"'{default_val}'" if default_val != "NULL" else 'NULL'},
                                     '{description}',
-                                    TRUE
+                                    TRUE,
+                                    '{st.session_state.selected_tpa}'
                                 )
                             """
                             execute_query(std_col_query)
@@ -640,12 +648,15 @@ if page == "📐 Target Table Designer":
         
         # Show selected table details
         elif selected_table and selected_table != '__NEW__':
+            # Filter by TPA
+            tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
             schema_df = execute_query(f"""
                 SELECT schema_id, column_name, data_type, nullable, 
                        default_value, description
                 FROM {DB_SILVER}.target_schemas
                 WHERE table_name = '{selected_table}'
                   AND active = TRUE
+                  {tpa_filter}
                 ORDER BY schema_id
             """)
             
@@ -733,7 +744,7 @@ if page == "📐 Target Table Designer":
                                 insert_query = f"""
                                     INSERT INTO {DB_SILVER}.target_schemas (
                                         table_name, column_name, data_type, nullable,
-                                        default_value, description, active
+                                        default_value, description, active, tpa
                                     )
                                     VALUES (
                                         '{selected_table}',
@@ -742,7 +753,8 @@ if page == "📐 Target Table Designer":
                                         TRUE,
                                         {f"'{processed_default}'" if processed_default else 'NULL'},
                                         {f"'{row.get('Description', '')}'" if row.get('Description') else 'NULL'},
-                                        TRUE
+                                        TRUE,
+                                        '{st.session_state.selected_tpa}'
                                     )
                                 """
                                 execute_query(insert_query)
@@ -806,15 +818,17 @@ if page == "🗺️ Field Mapper":
     st.markdown("### 🗺️ Field Mapper")
     st.markdown("Create Bronze → Silver field mappings")
     
-    # Show RAW_DATA_TABLE row count
+    # Show RAW_DATA_TABLE row count (filtered by TPA)
     try:
-        raw_data_count_df = execute_query(f"SELECT COUNT(*) as row_count FROM {DB_BRONZE}.RAW_DATA_TABLE", show_error=False)
+        tpa_filter = f"WHERE tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+        raw_data_count_df = execute_query(f"SELECT COUNT(*) as row_count FROM {DB_BRONZE}.RAW_DATA_TABLE {tpa_filter}", show_error=False)
         if not raw_data_count_df.empty:
             row_count = raw_data_count_df['ROW_COUNT'].iloc[0]
             if row_count > 0:
-                st.info(f"📊 **Source Data Available:** {row_count:,} rows in {DB_BRONZE}.RAW_DATA_TABLE")
+                tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+                st.info(f"📊 **Source Data Available:** {row_count:,} rows in {DB_BRONZE}.RAW_DATA_TABLE{tpa_msg}")
             else:
-                st.warning(f"⚠️ No data in {DB_BRONZE}.RAW_DATA_TABLE. Upload files via Bronze Ingestion Pipeline first.")
+                st.warning(f"⚠️ No data in {DB_BRONZE}.RAW_DATA_TABLE for {st.session_state.selected_tpa_name}. Upload files via Bronze Ingestion Pipeline first.")
     except Exception as e:
         st.warning(f"⚠️ Unable to check source data: {str(e)}")
     
@@ -1045,14 +1059,17 @@ if page == "🗺️ Field Mapper":
     with tab2:
         st.subheader("Manual Field Mapping")
         
-        # Get available source fields from Bronze RAW_DATA table
-        st.info("💡 Source fields are extracted from the RAW_DATA column in BRONZE.RAW_DATA_TABLE")
+        # Get available source fields from Bronze RAW_DATA table (filtered by TPA)
+        tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+        st.info(f"💡 Source fields are extracted from the RAW_DATA column in BRONZE.RAW_DATA_TABLE{tpa_msg}")
         
+        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
         source_fields_df = execute_query(f"""
             SELECT DISTINCT key AS field_name
             FROM {DB_BRONZE}.RAW_DATA_TABLE,
             LATERAL FLATTEN(input => RAW_DATA)
             WHERE RAW_DATA IS NOT NULL
+              {tpa_filter}
             ORDER BY key
             LIMIT 100
         """, show_error=False)
@@ -1061,20 +1078,23 @@ if page == "🗺️ Field Mapper":
         
         # Show data status
         if not source_fields:
-            data_count_df = execute_query(f"SELECT COUNT(*) as cnt FROM {DB_BRONZE}.RAW_DATA_TABLE", show_error=False)
+            tpa_filter_count = f"WHERE tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+            data_count_df = execute_query(f"SELECT COUNT(*) as cnt FROM {DB_BRONZE}.RAW_DATA_TABLE {tpa_filter_count}", show_error=False)
             data_count = data_count_df['CNT'].iloc[0] if not data_count_df.empty else 0
             
             if data_count == 0:
-                st.warning(f"⚠️ No data in {DB_BRONZE}.RAW_DATA_TABLE. Upload files via Bronze Streamlit app first.")
+                st.warning(f"⚠️ No data in {DB_BRONZE}.RAW_DATA_TABLE{tpa_msg}. Upload files via Bronze Streamlit app first.")
             else:
-                st.warning(f"⚠️ Found {data_count} records but no fields could be extracted. Records may have NULL RAW_DATA.")
+                st.warning(f"⚠️ Found {data_count} records{tpa_msg} but no fields could be extracted. Records may have NULL RAW_DATA.")
         
-        # Get available target tables
-        target_tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE ORDER BY table_name")
+        # Get available target tables (filtered by TPA)
+        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+        target_tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE {tpa_filter} ORDER BY table_name")
         target_tables = target_tables_df['TABLE_NAME'].tolist() if not target_tables_df.empty else []
         
         if not target_tables:
-            st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
+            tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+            st.warning(f"⚠️ No target tables defined{tpa_msg}. Create tables in Target Table Designer first.")
         
         # Target table selection (outside form to enable dynamic column loading)
         col1_pre, col2_pre = st.columns(2)
@@ -1088,14 +1108,16 @@ if page == "🗺️ Field Mapper":
                 selected_target_table = ""
                 st.warning("No target tables defined")
         
-        # Get target columns for selected table
+        # Get target columns for selected table (filtered by TPA)
         target_columns = []
         if selected_target_table:
+            tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
             target_cols_df = execute_query(f"""
                 SELECT column_name 
                 FROM {DB_SILVER}.target_schemas 
                 WHERE table_name = '{selected_target_table}' 
                 AND active = TRUE 
+                {tpa_filter}
                 ORDER BY column_name
             """)
             target_columns = target_cols_df['COLUMN_NAME'].tolist() if not target_cols_df.empty else []
@@ -1170,11 +1192,13 @@ if page == "🗺️ Field Mapper":
         st.markdown("Use pattern matching algorithms to suggest field mappings")
         
         # Get available target tables
-        target_tables_df_ml = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE ORDER BY table_name")
+        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+        target_tables_df_ml = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE {tpa_filter} ORDER BY table_name")
         target_tables_ml = target_tables_df_ml['TABLE_NAME'].tolist() if not target_tables_df_ml.empty else []
         
         if not target_tables_ml:
-            st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
+            tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+            st.warning(f"⚠️ No target tables defined{tpa_msg}. Create tables in Target Table Designer first.")
         else:
             col1, col2 = st.columns(2)
             
@@ -1194,11 +1218,15 @@ if page == "🗺️ Field Mapper":
                 min_confidence = st.slider("Minimum confidence:", 0.0, 1.0, 0.6, 0.05)
             
             if st.button("Generate ML Mappings", key="generate_ml_btn"):
-                with st.spinner(f"Analyzing fields and generating mappings for {target_table_ml}..."):
-                    result = execute_procedure(
-                        f"CALL {DB_SILVER}.auto_map_fields_ml('DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE', '{target_table_ml}', {top_n}, {min_confidence})"
-                    )
-                    st.info(result)
+                # Check if TPA is selected
+                if not st.session_state.selected_tpa:
+                    st.error("❌ Please select a TPA from the dropdown at the top of the page before generating mappings.")
+                else:
+                    with st.spinner(f"Analyzing fields and generating mappings for {target_table_ml}..."):
+                        result = execute_procedure(
+                            f"CALL {DB_SILVER}.auto_map_fields_ml('DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE', '{target_table_ml}', {top_n}, {min_confidence}, '{st.session_state.selected_tpa}')"
+                        )
+                        st.info(result)
                     
                     if "Successfully" in result:
                         st.success(f"✅ ML mappings generated for {target_table_ml}!")
@@ -1211,7 +1239,8 @@ if page == "🗺️ Field Mapper":
         st.markdown("Use Snowflake Cortex AI for semantic field mapping")
         
         # Get available target tables
-        target_tables_df_llm = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE ORDER BY table_name")
+        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+        target_tables_df_llm = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE {tpa_filter} ORDER BY table_name")
         target_tables_llm = target_tables_df_llm['TABLE_NAME'].tolist() if not target_tables_df_llm.empty else []
         
         # Get available prompt templates
@@ -1219,7 +1248,8 @@ if page == "🗺️ Field Mapper":
         available_prompts = prompt_templates_df['TEMPLATE_ID'].tolist() if not prompt_templates_df.empty else ["DEFAULT_FIELD_MAPPING"]
         
         if not target_tables_llm:
-            st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
+            tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+            st.warning(f"⚠️ No target tables defined{tpa_msg}. Create tables in Target Table Designer first.")
         else:
             models_df = execute_query(f"CALL {DB_SILVER}.get_available_cortex_models()")
             available_models = models_df.iloc[:, 0].tolist() if not models_df.empty else ["snowflake-arctic", "claude-3-5-sonnet", "llama3.1-70b"]
@@ -1248,11 +1278,15 @@ if page == "🗺️ Field Mapper":
                 prompt_id = st.selectbox("Prompt Template:", options=available_prompts, key="llm_prompt")
             
             if st.button("Generate LLM Mappings", key="generate_llm_btn"):
-                with st.spinner(f"Calling {model_name} for semantic mapping to {target_table_llm}..."):
-                    result = execute_procedure(
-                        f"CALL {DB_SILVER}.auto_map_fields_llm('DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE', '{target_table_llm}', '{model_name}', '{prompt_id}')"
-                    )
-                    st.info(result)
+                # Check if TPA is selected
+                if not st.session_state.selected_tpa:
+                    st.error("❌ Please select a TPA from the dropdown at the top of the page before generating mappings.")
+                else:
+                    with st.spinner(f"Calling {model_name} for semantic mapping to {target_table_llm}..."):
+                        result = execute_procedure(
+                            f"CALL {DB_SILVER}.auto_map_fields_llm('DB_INGEST_PIPELINE.BRONZE.RAW_DATA_TABLE', '{target_table_llm}', '{model_name}', '{prompt_id}', '{st.session_state.selected_tpa}')"
+                        )
+                        st.info(result)
                     
                     if "Successfully" in result:
                         st.success(f"✅ LLM mappings generated for {target_table_llm}!")
@@ -2480,9 +2514,12 @@ if page == "⚙️ Rules Engine":
 
 if page == "📊 Transformation Monitor":
     st.markdown("### 📊 Transformation Monitor")
-    st.markdown("Monitor Bronze → Silver transformation batches")
+    tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+    st.markdown(f"Monitor Bronze → Silver transformation batches{tpa_msg}")
     
     st.subheader("Transformation Status Summary")
+    # Note: v_transformation_status_summary view doesn't have TPA column yet
+    # TODO: Add TPA column to silver_processing_log table and update view
     summary_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_transformation_status_summary")
     
     if not summary_df.empty:
@@ -2503,6 +2540,8 @@ if page == "📊 Transformation Monitor":
         st.info("No transformation batches yet.")
     
     st.subheader("Recent Transformation Batches")
+    # Note: v_recent_transformation_batches view doesn't have TPA column yet
+    # TODO: Add TPA column to silver_processing_log table and update view
     batches_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_recent_transformation_batches")
     
     if not batches_df.empty:
@@ -2528,6 +2567,8 @@ if page == "📊 Transformation Monitor":
         st.info("No transformation batches yet.")
     
     st.subheader("Processing Watermarks")
+    # Note: v_watermark_status view doesn't have TPA column yet
+    # TODO: Add TPA column to processing_watermarks table and update view
     watermarks_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_watermark_status")
     
     if not watermarks_df.empty:
@@ -2537,10 +2578,11 @@ if page == "📊 Transformation Monitor":
     
     st.subheader("Manual Transformation")
     
-    # Get available target tables
+    # Get available target tables (filtered by TPA)
     transform_tables = []
     try:
-        tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE ORDER BY table_name", show_error=False)
+        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
+        tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE {tpa_filter} ORDER BY table_name", show_error=False)
         if not tables_df.empty:
             transform_tables = tables_df['TABLE_NAME'].tolist()
     except:
@@ -2578,18 +2620,21 @@ if page == "📊 Transformation Monitor":
 
 if page == "📋 Data Viewer":
     st.markdown("### 📋 Data Viewer")
-    st.markdown("View and explore records in Silver layer tables")
+    tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+    st.markdown(f"View and explore records in Silver layer tables{tpa_msg}")
     
-    # Get list of available target tables
+    # Get list of available target tables (filtered by TPA)
+    tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
     target_tables_df = execute_query(f"""
         SELECT DISTINCT table_name 
         FROM {DB_SILVER}.target_schemas 
         WHERE active = TRUE 
+        {tpa_filter}
         ORDER BY table_name
     """, show_error=False)
     
     if target_tables_df.empty:
-        st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
+        st.warning(f"⚠️ No target tables defined{tpa_msg}. Create tables in Target Table Designer first.")
     else:
         target_tables = target_tables_df['TABLE_NAME'].tolist()
         
@@ -2625,11 +2670,12 @@ if page == "📋 Data Viewer":
                 total_records = count_df['CNT'][0] if not count_df.empty else 0
                 col1.metric("Total Records", f"{total_records:,}")
                 
-                # Get column count
+                # Get column count (filtered by TPA)
+                tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
                 columns_df = execute_query(f"""
                     SELECT COUNT(DISTINCT column_name) as cnt 
                     FROM {DB_SILVER}.target_schemas 
-                    WHERE table_name = '{selected_table}' AND active = TRUE
+                    WHERE table_name = '{selected_table}' AND active = TRUE {tpa_filter}
                 """, show_error=False)
                 column_count = columns_df['CNT'][0] if not columns_df.empty else 0
                 col2.metric("Columns", column_count)
@@ -2639,7 +2685,7 @@ if page == "📋 Data Viewer":
                     first_col_df = execute_query(f"""
                         SELECT column_name 
                         FROM {DB_SILVER}.target_schemas 
-                        WHERE table_name = '{selected_table}' AND active = TRUE 
+                        WHERE table_name = '{selected_table}' AND active = TRUE {tpa_filter}
                         ORDER BY schema_id 
                         LIMIT 1
                     """, show_error=False)
@@ -2657,6 +2703,7 @@ if page == "📋 Data Viewer":
                     WHERE table_name = '{selected_table}' 
                     AND (LOWER(column_name) LIKE '%timestamp%' OR LOWER(column_name) LIKE '%date%' OR LOWER(column_name) LIKE '%time%')
                     AND active = TRUE 
+                    {tpa_filter}
                     ORDER BY schema_id 
                     LIMIT 1
                 """, show_error=False)
@@ -2746,9 +2793,12 @@ if page == "📋 Data Viewer":
 
 if page == "📈 Data Quality Metrics":
     st.markdown("### 📈 Data Quality Metrics")
-    st.markdown("Monitor data quality across Silver tables")
+    tpa_msg = f" for {st.session_state.selected_tpa_name}" if st.session_state.selected_tpa else ""
+    st.markdown(f"Monitor data quality across Silver tables{tpa_msg}")
     
     st.subheader("Data Quality Dashboard")
+    # Note: v_data_quality_dashboard view doesn't have TPA column yet
+    # TODO: Add TPA column to data_quality_metrics table and update view
     dashboard_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_data_quality_dashboard")
     
     if not dashboard_df.empty:
@@ -2779,6 +2829,8 @@ if page == "📈 Data Quality Metrics":
         st.info("No quality metrics recorded yet.")
     
     st.subheader("Quarantined Records")
+    # Note: quarantine_records table doesn't have TPA column yet
+    # TODO: Add TPA column to quarantine_records table
     quarantine_df = execute_query(f"""
         SELECT quarantine_id, batch_id, source_table, target_table,
                quarantine_timestamp, resolved

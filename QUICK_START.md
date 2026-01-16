@@ -86,17 +86,28 @@ snow sql -f silver/verify_silver_deployment.sql
    - **BRONZE_INGESTION_PIPELINE** - File upload and monitoring
    - **SILVER_TRANSFORMATION_MANAGER** - Data transformation
 
+**Important: TPA Selection**
+- Both apps have a **TPA selector** in the header (top-left)
+- Select a TPA (e.g., "Provider A Healthcare") before using the app
+- TPA selection applies to all pages and operations
+- All data is filtered by the selected TPA
+
 ## 6. Upload Sample Data
 
 **Option A: Via Streamlit**
 1. Open Bronze Ingestion Pipeline app
-2. Go to "📤 Upload Files" tab
-3. Drag and drop files from `sample_data/claims_data/`
+2. **Select TPA** from dropdown in header (e.g., "Provider A Healthcare")
+3. Go to "📤 Upload Files" tab
+4. Drag and drop files from `sample_data/claims_data/`
+5. Files are automatically tagged with selected TPA
 
 **Option B: Via CLI**
 ```bash
-snow sql -q "PUT file://sample_data/claims_data/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC;"
+# Upload to TPA-specific folder
+snow sql -q "PUT file://sample_data/claims_data/*.csv @DB_INGEST_PIPELINE.BRONZE.SRC/provider_a/;"
 ```
+
+**Note:** Files uploaded via CLI should be placed in TPA-specific subfolders (e.g., `provider_a/`, `provider_b/`)
 
 ## 7. Process Files
 
@@ -115,11 +126,12 @@ CALL DB_INGEST_PIPELINE.BRONZE.resume_all_tasks();
 
 **Via Streamlit:**
 1. Open Silver Transformation Manager
-2. Go to "📊 Transformation Monitor"
-3. Select **CLAIMS** table
-4. Set batch size: 10000
-5. Check "Apply Rules" ✓
-6. Click "Run Transformation"
+2. **Select TPA** from dropdown in header (e.g., "Provider A Healthcare")
+3. Go to "📊 Transformation Monitor"
+4. Select **CLAIMS** table (filtered by TPA)
+5. Set batch size: 10000
+6. Check "Apply Rules" ✓
+7. Click "Run Transformation"
 
 **Via SQL:**
 ```sql

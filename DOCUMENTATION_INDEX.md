@@ -2,7 +2,7 @@
 
 **Complete guide to all documentation in the Snowflake File Processing Pipeline project.**
 
-**Last Updated**: January 15, 2026
+**Last Updated**: January 16, 2026
 
 ---
 
@@ -104,6 +104,7 @@ All diagrams are located in `docs/design/images/`:
 
 | Document | Description |
 |----------|-------------|
+| **[2026-01-16 TPA UI Enhancements](docs/changelogs/2026-01-16_tpa_ui_enhancements.md)** | **Global TPA selector, TPA filtering across all pages, duplicate prevention, LLM one-to-one mapping** |
 | **[2026-01-15 Features & Fixes](docs/changelogs/2026-01-15_features_and_fixes.md)** | **Silver Streamlit: LLM approval, TPA fixes, selectbox behavior, sidebar layout** |
 
 ---

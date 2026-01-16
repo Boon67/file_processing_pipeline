@@ -55,11 +55,14 @@ Both layers include modern web interfaces built with Streamlit in Snowflake for 
 - 🏢 **Multi-Tenant Architecture**: Support multiple healthcare providers in one system
 - 🔐 **Isolated Configurations**: Each TPA has independent schemas, mappings, and rules
 - 📊 **TPA-Specific Processing**: Different validation rules and transformations per provider
-- 🎯 **Navigation-Level Selection**: Select TPA once, applies to all operations
+- 🎯 **Global TPA Selector**: Select TPA once in header, applies to all pages and operations
 - 📁 **Organized Storage**: Files automatically organized by TPA in stage folders
 - 🔄 **Flexible Evolution**: TPAs can change independently without affecting others
+- 🔍 **TPA-Filtered Views**: All data, tables, and mappings filtered by selected TPA
+- ✅ **Automatic Tagging**: All new records automatically tagged with selected TPA
 
-> 📖 **Complete TPA Guide**: [`docs/TPA_IMPLEMENTATION_COMPLETE.md`](docs/TPA_IMPLEMENTATION_COMPLETE.md)
+> 📖 **Complete TPA Guide**: [`docs/guides/TPA_COMPLETE_GUIDE.md`](docs/guides/TPA_COMPLETE_GUIDE.md)  
+> 📋 **Latest Updates**: [`docs/changelogs/2026-01-16_tpa_ui_enhancements.md`](docs/changelogs/2026-01-16_tpa_ui_enhancements.md)
 
 ## 🏗️ Architecture
 

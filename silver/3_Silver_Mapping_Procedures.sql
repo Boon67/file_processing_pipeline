@@ -121,7 +121,8 @@ CREATE OR REPLACE PROCEDURE auto_map_fields_ml(
     source_table VARCHAR DEFAULT 'RAW_DATA_TABLE',
     target_table VARCHAR DEFAULT NULL,
     top_n INTEGER DEFAULT 3,
-    min_confidence FLOAT DEFAULT 0.6
+    min_confidence FLOAT DEFAULT 0.6,
+    tpa VARCHAR DEFAULT NULL
 )
 RETURNS VARCHAR
 LANGUAGE PYTHON
@@ -178,8 +179,12 @@ def calculate_word_overlap(source, target):
     union = source_words.union(target_words)
     return len(intersection) / len(union) if union else 0.0
 
-def auto_map_fields_ml(session, source_table, target_table, top_n, min_confidence):
+def auto_map_fields_ml(session, source_table, target_table, top_n, min_confidence, tpa):
     """Main function for ML-based field mapping"""
+    
+    # Validate required parameters
+    if not tpa:
+        return "Error: tpa parameter is required. Please select a TPA from the dropdown at the top of the page."
     
     # Get source fields from Bronze table (analyze VARIANT column structure)
     bronze_query = f"""
@@ -362,7 +367,8 @@ CREATE OR REPLACE PROCEDURE auto_map_fields_llm(
     source_table VARCHAR DEFAULT 'RAW_DATA_TABLE',
     target_table VARCHAR DEFAULT NULL,
     model_name VARCHAR DEFAULT 'llama3.1-70b',
-    custom_prompt_id VARCHAR DEFAULT 'DEFAULT_FIELD_MAPPING'
+    custom_prompt_id VARCHAR DEFAULT 'DEFAULT_FIELD_MAPPING',
+    tpa VARCHAR DEFAULT NULL
 )
 RETURNS VARCHAR
 LANGUAGE PYTHON
@@ -374,8 +380,15 @@ $$
 import json
 import re
 
-def auto_map_fields_llm(session, source_table, target_table, model_name, custom_prompt_id):
+def auto_map_fields_llm(session, source_table, target_table, model_name, custom_prompt_id, tpa):
     """Main function for LLM-based field mapping"""
+    
+    # Validate required parameters
+    if not target_table:
+        return "Error: target_table parameter is required"
+    
+    if not tpa:
+        return "Error: tpa parameter is required. Please select a TPA from the dropdown at the top of the page."
     
     # Get source fields from Bronze table
     bronze_query = f"""
@@ -506,31 +519,55 @@ def auto_map_fields_llm(session, source_table, target_table, model_name, custom_
         valid_columns_df = session.sql(valid_columns_query).to_pandas()
         valid_columns = set(valid_columns_df['COLUMN_NAME'].str.upper().tolist())
         
+        # Group mappings by source_field and keep only the highest confidence one
+        import pandas as pd
+        mappings_df = pd.DataFrame(mappings)
+        
+        # Parse and validate mappings first
+        valid_mappings = []
+        for _, mapping in mappings_df.iterrows():
+            if not all(k in mapping for k in ['source_field', 'target_field', 'confidence']):
+                continue
+            
+            # Parse target_field (format: TABLE.COLUMN)
+            target_parts = str(mapping['target_field']).split('.')
+            if len(target_parts) != 2:
+                continue
+            
+            target_column = target_parts[1].upper()
+            
+            # Validate that target column exists in target_schemas
+            if target_column not in valid_columns:
+                continue
+            
+            valid_mappings.append({
+                'source_field': str(mapping['source_field']).upper(),
+                'target_table': target_parts[0].upper(),
+                'target_column': target_column,
+                'confidence': float(mapping['confidence']),
+                'reasoning': mapping.get('reasoning', '')
+            })
+        
+        if not valid_mappings:
+            return "No valid mappings found in LLM response"
+        
+        # Convert to DataFrame and keep only highest confidence mapping per source field
+        valid_mappings_df = pd.DataFrame(valid_mappings)
+        
+        # Sort by confidence (descending) and keep first (highest) per source_field
+        best_mappings_df = valid_mappings_df.sort_values('confidence', ascending=False).groupby('source_field').first().reset_index()
+        
         # Insert mappings into field_mappings table
         rows_inserted = 0
         rows_skipped = 0
         skipped_columns = []
         
-        for mapping in mappings:
-            if not all(k in mapping for k in ['source_field', 'target_field', 'confidence']):
-                continue
-            
-            # Parse target_field (format: TABLE.COLUMN)
-            target_parts = mapping['target_field'].split('.')
-            if len(target_parts) != 2:
-                continue
-            
-            target_table_name = target_parts[0].upper()
-            target_column = target_parts[1].upper()
-            source_field = mapping['source_field'].upper()
-            confidence = float(mapping['confidence'])
-            reasoning = mapping.get('reasoning', '')
-            
-            # Validate that target column exists in target_schemas
-            if target_column not in valid_columns:
-                rows_skipped += 1
-                skipped_columns.append(f"{target_column} (suggested by LLM but not in schema)")
-                continue
+        for _, mapping in best_mappings_df.iterrows():
+            source_field = mapping['source_field']
+            target_table_name = mapping['target_table']
+            target_column = mapping['target_column']
+            confidence = mapping['confidence']
+            reasoning = mapping['reasoning']
             
             # Check if mapping already exists (based on unique constraint: source_field, target_table, target_column, tpa)
             check_query = f"""
@@ -582,14 +619,12 @@ def auto_map_fields_llm(session, source_table, target_table, model_name, custom_
                 continue
         
         # Build result message
+        total_llm_suggestions = len(mappings)
         result_msg = f"Successfully generated {rows_inserted} LLM-based field mappings using {model_name}"
+        result_msg += f" (kept best match per source field from {total_llm_suggestions} LLM suggestions)"
         
         if rows_skipped > 0:
-            result_msg += f". Skipped {rows_skipped} invalid mappings (columns not in target schema)"
-            if skipped_columns:
-                result_msg += f": {', '.join(skipped_columns[:5])}"
-                if len(skipped_columns) > 5:
-                    result_msg += f" and {len(skipped_columns) - 5} more"
+            result_msg += f". Skipped {rows_skipped} duplicates"
         
         return result_msg
         

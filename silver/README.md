@@ -16,9 +16,11 @@ The Silver layer transforms Bronze raw data into clean, standardized, business-r
 ### Field Mapping Engine
 - **Manual CSV Mappings**: Load predefined mappings from CSV files
 - **ML Pattern Matching**: Auto-suggest mappings using similarity algorithms (exact match, substring, sequence similarity, TF-IDF)
-- **LLM Cortex AI**: Semantic understanding of field relationships using Snowflake Cortex AI models
+- **LLM Cortex AI**: Semantic understanding of field relationships using Snowflake Cortex AI models (one-to-one mapping per source field)
 - **Confidence Scoring**: All mappings include confidence scores for review
 - **Approval Workflow**: Review and approve suggested mappings before use
+- **TPA-Aware**: All mappings include TPA dimension for multi-tenancy
+- **Duplicate Prevention**: Prevents duplicate mappings for same TPA
 
 ### Rules Engine
 - **Data Quality Rules**: Null checks, format validation, range checks, referential integrity
@@ -35,12 +37,14 @@ The Silver layer transforms Bronze raw data into clean, standardized, business-r
 - **Audit Trail**: Complete logging of all transformation batches
 
 ### Streamlit Management UI
-- **Schema Designer**: Define and manage target table schemas
-- **Field Mapper**: Create and review field mappings with all three methods
+- **Global TPA Selector**: Select TPA once in header, applies to all pages
+- **Schema Designer**: Define and manage TPA-specific target table schemas
+- **Field Mapper**: Create and review TPA-specific field mappings with all three methods
 - **Rules Engine**: Configure transformation rules with visual interface
 - **Transformation Monitor**: Real-time batch processing status
 - **Data Quality Metrics**: Quality dashboards and quarantine management
 - **Task Management**: Control Silver layer tasks (pause/resume/execute)
+- **TPA Filtering**: All data, tables, and mappings filtered by selected TPA
 
 ## 🏗️ Architecture
 

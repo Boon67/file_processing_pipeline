@@ -1,7 +1,7 @@
 # TPA (Third Party Administrator) - Complete Guide
 
-**Last Updated**: January 15, 2026  
-**Version**: 1.0
+**Last Updated**: January 16, 2026  
+**Version**: 2.0 - UI Enhancements
 
 ## 📖 Table of Contents
 
@@ -36,7 +36,10 @@ By making TPA a core dimension, we enable:
 2. **⚡ Parallel Processing**: Different TPAs can be processed simultaneously
 3. **🔄 Flexible Evolution**: TPAs can evolve their schemas independently
 4. **📊 Clear Governance**: Easy to audit and manage TPA-specific transformations
-5. **🎯 Navigation-Level Selection**: Select TPA once, applies to all operations
+5. **🎯 Global TPA Selector**: Select TPA once in header, applies to all pages
+6. **🔍 TPA-Filtered Views**: All data, tables, and mappings automatically filtered
+7. **✅ Automatic Tagging**: New records automatically tagged with selected TPA
+8. **🛡️ Multi-Tenancy**: Complete data isolation between TPAs
 
 ---
 
@@ -707,6 +710,111 @@ GROUP BY tpa;
 
 ---
 
+## TPA UI Enhancements (v2.0)
+
+### Global TPA Selector
+
+**Location**: Header of both Bronze and Silver Streamlit applications
+
+**Features:**
+- **Prominent Display**: TPA selector at top-left with "TPA:" label
+- **Persistent Selection**: TPA choice stored in session state
+- **Global Application**: Selected TPA applies to all pages
+- **Dynamic Loading**: TPA list loaded from `BRONZE.TPA_MASTER` table
+
+**Usage:**
+1. Open Bronze or Silver Streamlit app
+2. Select TPA from dropdown in header
+3. All pages automatically filter by selected TPA
+4. Selection persists across page navigation
+
+### TPA-Filtered Pages
+
+#### Bronze Layer
+- **Upload Files**: Files automatically tagged with selected TPA
+- **Processing Status**: Shows only selected TPA's files and statistics
+- **File Stages**: Filtered by TPA
+- **Raw Data Viewer**: Shows only selected TPA's data
+
+#### Silver Layer
+- **Target Table Designer**: Shows only selected TPA's table definitions
+- **Field Mapper**: 
+  - Source data filtered by TPA
+  - Target tables filtered by TPA
+  - Target columns filtered by TPA
+  - All mappings created with TPA tag
+- **Data Viewer**: Shows only selected TPA's Silver tables
+- **Transformation Monitor**: Manual transform limited to TPA's tables
+
+### Automatic TPA Tagging
+
+All new records automatically include the selected TPA:
+
+**Field Mappings:**
+```python
+# Streamlit automatically passes selected TPA to procedures
+CALL auto_map_fields_llm(
+    'RAW_DATA_TABLE', 
+    'CLAIMS', 
+    'snowflake-arctic', 
+    'DEFAULT_FIELD_MAPPING',
+    'provider_a'  -- Automatically included
+)
+```
+
+**Target Schemas:**
+```sql
+INSERT INTO target_schemas (
+    table_name, column_name, data_type, 
+    nullable, description, active, tpa
+)
+VALUES (
+    'CLAIMS', 'CLAIM_NUM', 'VARCHAR(100)',
+    TRUE, 'Unique claim number', TRUE, 
+    'provider_a'  -- Automatically included
+)
+```
+
+### TPA Validation
+
+**Error Prevention:**
+- Cannot create tables without TPA selected
+- Cannot generate mappings without TPA selected
+- Clear error messages guide users to select TPA
+
+**Example Error Message:**
+```
+❌ Please select a TPA from the dropdown at the top 
+   of the page before generating mappings.
+```
+
+### Benefits of UI Enhancements
+
+1. **Simplified Workflow**: Select TPA once, not on every page
+2. **Reduced Errors**: Automatic TPA tagging prevents mistakes
+3. **Better UX**: Clear context of which TPA's data is displayed
+4. **Cleaner Interface**: No redundant TPA selectors on each page
+5. **Complete Isolation**: Users only see their TPA's data
+
+### Future Enhancements
+
+**Phase 2 - Complete TPA Coverage:**
+- Add TPA column to `data_quality_metrics` table
+- Add TPA column to `quarantine_records` table
+- Add TPA column to `silver_processing_log` table
+- Add TPA column to `processing_watermarks` table
+- Update all views to include TPA filtering
+
+**Phase 3 - Advanced Features:**
+- User-to-TPA assignment (RBAC)
+- Automatic TPA selection based on user role
+- Cross-TPA analytics for admins
+- TPA-specific configurations (models, rules, thresholds)
+
+> 📋 **Detailed Changelog**: [`docs/changelogs/2026-01-16_tpa_ui_enhancements.md`](../changelogs/2026-01-16_tpa_ui_enhancements.md)
+
+---
+
 ## Related Documentation
 
 - **[Main README](../../README.md)** - Project overview
@@ -714,11 +822,12 @@ GROUP BY tpa;
 - **[Bronze Layer](../../bronze/README.md)** - Bronze layer documentation
 - **[Silver Layer](../../silver/README.md)** - Silver layer documentation
 - **[Architecture](../design/ARCHITECTURE.md)** - System architecture
+- **[TPA UI Enhancements Changelog](../changelogs/2026-01-16_tpa_ui_enhancements.md)** - Latest TPA updates
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: January 15, 2026  
+**Version**: 2.0 - UI Enhancements  
+**Last Updated**: January 16, 2026  
 **Status**: ✅ Complete
 
 **Consolidated from:**

@@ -30,10 +30,12 @@ The Bronze layer is the raw data ingestion layer that:
 
 ### Monitoring & Management
 - **Streamlit Web UI**: Full-featured interface for uploads and monitoring
-- **Real-Time Status**: Track file processing in real-time
+- **Global TPA Selector**: Select TPA once in header, applies to all pages
+- **Real-Time Status**: Track file processing in real-time (filtered by TPA)
 - **Task Control**: Pause, resume, execute tasks on-demand
 - **Performance Metrics**: Runtime statistics for all tasks
 - **Error Tracking**: Detailed error logs and troubleshooting
+- **TPA Filtering**: All data and statistics filtered by selected TPA
 
 ## 🏗️ Architecture
 

@@ -104,20 +104,34 @@ The Bronze layer handles raw file ingestion from CSV and Excel files into Snowfl
 ![Bronze Processing Status](screenshots/bronze_processing_status.png)
 *Real-time monitoring dashboard showing file processing status, success rates, and detailed metrics*
 
+#### Global TPA Selector
+
+**NEW: TPA Selection in Header**
+- **Location**: Top-left of the application header
+- **Label**: "TPA:" dropdown
+- **Persistence**: Selection applies to all pages
+- **Dynamic**: Loads TPAs from `BRONZE.TPA_MASTER` table
+
+**How to Use:**
+1. Open Bronze Streamlit app
+2. Select TPA from dropdown in header (e.g., "Provider A Healthcare")
+3. All pages automatically filter by selected TPA
+4. Selection persists as you navigate between pages
+
 #### 1. Upload Files
 
 Upload CSV or Excel files directly through the web interface:
 
-**Step 1: Select TPA (Third Party Administrator)**
-- Choose from predefined providers (provider_a, provider_b, provider_c, provider_d, provider_e)
-- Or select "custom" to enter your own TPA name
-- The TPA determines the subfolder where files are uploaded: `@SRC/{tpa_name}/`
-- TPA value is automatically extracted and stored in the `TPA` column for downstream processing
+**TPA Context**
+- Files are automatically tagged with the TPA selected in the header
+- No need to select TPA again on the upload page
+- Info message shows which TPA will be used for uploads
+- Files are uploaded to `@SRC/{tpa_name}/` stage subfolder
 
-**Step 2: Upload Files**
+**Upload Steps**
 - Drag and drop files or click to browse
 - Multiple file upload supported
-- Files are uploaded to `@SRC/{tpa_name}/` stage subfolder
+- Files automatically tagged with selected TPA
 - Automatic discovery triggers on schedule or manual execution
 
 **Example Folder Structure:**
@@ -137,12 +151,17 @@ Upload CSV or Excel files directly through the web interface:
 
 #### 2. Processing Status
 
-Monitor file processing in real-time:
+Monitor file processing in real-time for the selected TPA:
 
-- **Total Files**: Count of all processed files
-- **Success Rate**: Percentage of successfully processed files
-- **Failed Files**: Files that encountered errors
-- **Total Rows**: Cumulative rows ingested
+- **Total Files**: Count of all processed files for selected TPA
+- **Success Rate**: Percentage of successfully processed files for selected TPA
+- **Failed Files**: Files that encountered errors for selected TPA
+- **Total Rows**: Cumulative rows ingested for selected TPA
+
+**TPA Filtering:**
+- All statistics and file lists filtered by selected TPA
+- Only shows files belonging to the selected TPA
+- Filters include: Status and File Type (TPA filter removed from page)
 
 **Status Values:**
 - ✅ `SUCCESS`: File processed successfully
@@ -278,22 +297,54 @@ The Silver layer transforms raw Bronze data into clean, standardized tables usin
 
 ### Silver Streamlit Application
 
+#### Global TPA Selector
+
+**NEW: TPA Selection in Header**
+- **Location**: Top-left of the application header
+- **Label**: "TPA:" dropdown
+- **Persistence**: Selection applies to all pages
+- **Dynamic**: Loads TPAs from `BRONZE.TPA_MASTER` table
+
+**How to Use:**
+1. Open Silver Streamlit app
+2. Select TPA from dropdown in header (e.g., "Provider A Healthcare")
+3. All pages automatically filter by selected TPA:
+   - Target tables show only TPA-specific schemas
+   - Source data filtered by TPA
+   - Field mappings filtered by TPA
+   - Data viewer shows only TPA's tables
+4. Selection persists as you navigate between pages
+
+**Benefits:**
+- ✅ No need to select TPA on each page
+- ✅ Complete data isolation between TPAs
+- ✅ Automatic TPA tagging for new records
+- ✅ Clear context of which TPA's data is displayed
+
 ![Silver Data Viewer](screenshots/silver_data_viewer.png)
 *Data Viewer showing CLAIMS table with 3,142 records, filtering options, and data preview*
 
 #### 1. Target Table Designer
 
-Define your target table schemas:
+Define your target table schemas for the selected TPA:
+
+**TPA Filtering:**
+- Shows only tables assigned to the selected TPA
+- All new tables automatically tagged with selected TPA
+- All new columns automatically tagged with selected TPA
+- Cannot create tables without TPA selected
 
 **Create a New Table:**
-1. Click "➕ New Table" button
-2. Enter table name (e.g., `CLAIMS`)
-3. Add columns with:
+1. Ensure TPA is selected in header
+2. Click "➕ New Table" button
+3. Enter table name (e.g., `CLAIMS`)
+4. Add columns with:
    - Column name
    - Data type (VARCHAR, NUMBER, DATE, etc.)
    - Nullable (TRUE/FALSE)
    - Default value (optional)
    - Description
+5. All columns automatically tagged with selected TPA
 
 **Standard Metadata Columns:**
 Every table automatically includes:
@@ -301,6 +352,7 @@ Every table automatically includes:
 - `INGESTION_TIMESTAMP`: When data was ingested to Bronze
 - `CREATED_AT`: When record was created in Silver
 - `UPDATED_AT`: When record was last updated
+- `TPA`: Third Party Administrator code
 
 **View Existing Tables:**
 - See all defined tables and their column counts
@@ -309,10 +361,18 @@ Every table automatically includes:
 
 #### 2. Field Mapper
 
-Map Bronze raw data fields to Silver target columns:
+Map Bronze raw data fields to Silver target columns for the selected TPA:
 
 ![Silver Field Mapper](screenshots/silver_field_mapper.png)
 *Field Mapper interface showing approved mappings with multiple mapping methods (Manual, ML, LLM)*
+
+**TPA Filtering:**
+- **Source Data**: Shows row count and fields only for selected TPA
+  - Example: "1,127 rows for Provider A Healthcare"
+- **Target Tables**: Dropdown shows only TPA-specific tables
+- **Target Columns**: Dropdown shows only TPA-specific columns (dynamic based on table)
+- **Mappings**: All created mappings automatically tagged with selected TPA
+- **Duplicate Prevention**: Cannot create duplicate mappings for same TPA
 
 **Mapping Methods:**
 
@@ -320,24 +380,35 @@ Map Bronze raw data fields to Silver target columns:
 - Direct user-defined mappings
 - Full control over transformation logic
 - Best for known, critical fields
+- **Target Column**: Dynamic dropdown based on selected target table and TPA
+
+**Steps:**
+1. Select target table from dropdown (filtered by TPA)
+2. Select target column from dropdown (filtered by table and TPA)
+3. Enter source field name
+4. Optionally add transformation logic
+5. Click "Add Mapping"
+6. Mapping automatically tagged with selected TPA
 
 ```sql
--- Example: Manual mapping
+-- Example: Manual mapping (TPA automatically included)
 INSERT INTO field_mappings (
     source_table, source_field, target_table, target_column,
     transformation_logic, mapping_method, confidence_score,
-    approved, approved_by, approved_timestamp
+    approved, approved_by, approved_timestamp, tpa
 )
 VALUES (
     'RAW_DATA_TABLE', 'CLM_NBR', 'CLAIMS', 'CLAIM_NUM',
     'RAW_DATA:CLM_NBR::VARCHAR', 'MANUAL', 1.0,
-    TRUE, CURRENT_USER(), CURRENT_TIMESTAMP()
+    TRUE, CURRENT_USER(), CURRENT_TIMESTAMP(), 'provider_a'
 );
 ```
 
 **B. ML Auto-Mapping**
 - Uses similarity algorithms (exact, substring, TF-IDF)
 - Suggests mappings based on field name patterns
+- Automatically includes TPA in mapping creation
+- Prevents duplicate mappings for same TPA
 - Provides confidence scores (0.0 - 1.0)
 - Best for bulk mapping of similar field names
 
@@ -346,6 +417,15 @@ VALUES (
 - Understands context and meaning
 - Handles complex field relationships
 - Best for fields with different naming conventions
+- **One-to-One Mapping**: Keeps only highest confidence mapping per source field
+- Automatically includes TPA in mapping creation
+- Prevents duplicate mappings for same TPA
+
+**LLM Mapping Logic:**
+- Analyzes all source fields against all target columns
+- Generates confidence scores for each potential mapping
+- **Automatically selects best match** per source field (highest confidence)
+- Example: If `diag1` could map to both `claim_type` (0.75) and `diagnosis_code` (0.85), only `diagnosis_code` mapping is created
 
 **Mapping Approval Workflow:**
 1. Generate mappings (Manual/ML/LLM)
@@ -353,6 +433,7 @@ VALUES (
 3. Check for duplicates and conflicts
 4. Approve mappings (checkbox in UI)
 5. System tracks who approved and when
+6. All mappings include TPA context
 
 **Mapping Status:**
 - ⚠️ **PENDING**: Not yet approved
