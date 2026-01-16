@@ -20,82 +20,20 @@ APP_ICON = "🥈"
 
 # Set up sidebar navigation FIRST (before any other sidebar content)
 st.sidebar.title("📑 Navigation")
-
-# Initialize session state for selected TPA and page if not exists
-if 'selected_tpa' not in st.session_state:
-    st.session_state.selected_tpa = None
-if 'selected_page' not in st.session_state:
-    st.session_state.selected_page = "📐 Target Table Designer"
-if 'nav_expanded' not in st.session_state:
-    st.session_state.nav_expanded = {}
-
-# Define page structure with icons
-PAGES = {
-    "📐 Target Table Designer": {
-        "icon": "📐",
-        "name": "Target Table Designer",
-        "description": "Define target table schemas"
-    },
-    "🗺️ Field Mapper": {
-        "icon": "🗺️",
-        "name": "Field Mapper",
-        "description": "Map source fields to target columns"
-    },
-    "⚙️ Rules Engine": {
-        "icon": "⚙️",
-        "name": "Rules Engine",
-        "description": "Configure transformation rules"
-    },
-    "📊 Transformation Monitor": {
-        "icon": "📊",
-        "name": "Transformation Monitor",
-        "description": "Monitor transformation batches"
-    },
-    "📋 Data Viewer": {
-        "icon": "📋",
-        "name": "Data Viewer",
-        "description": "View Bronze and Silver data"
-    },
-    "📈 Data Quality Metrics": {
-        "icon": "📈",
-        "name": "Data Quality Metrics",
-        "description": "Analyze data quality"
-    },
-    "🔧 Task Management": {
-        "icon": "🔧",
-        "name": "Task Management",
-        "description": "Manage Snowflake tasks"
-    }
-}
-
-# Navigation will be completed after TPA list is loaded
-# Placeholder for now - actual navigation happens after get_tpa_list is defined
-page = st.session_state.selected_page
-
-# ============================================
-# GLOBAL CSS - Disable selectbox search/typing
-# ============================================
-st.markdown("""
-    <style>
-    /* Disable typing in selectbox dropdowns */
-    div[data-baseweb="select"] input {
-        pointer-events: none !important;
-        caret-color: transparent !important;
-        user-select: none !important;
-    }
-    
-    /* Make selectbox dropdown read-only */
-    div[data-baseweb="select"] input[readonly] {
-        cursor: pointer !important;
-    }
-    
-    /* Ensure selectbox behaves as dropdown only */
-    .stSelectbox input {
-        pointer-events: none !important;
-        cursor: pointer !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
+page = st.sidebar.radio(
+    "Select a page:",
+    [
+        "📐 Target Table Designer",
+        "🗺️ Field Mapper",
+        "⚙️ Rules Engine",
+        "📊 Transformation Monitor",
+        "📋 Data Viewer",
+        "📈 Data Quality Metrics",
+        "🔧 Task Management"
+    ],
+    label_visibility="collapsed"
+)
+st.sidebar.markdown("---")
 
 # ============================================
 # CONFIGURATION
@@ -159,7 +97,13 @@ def load_config_from_stage(_session):
 # Load configuration
 config = load_config_from_stage(session)
 
-# Config info will be displayed at the bottom of sidebar after TPA selection
+# Display config info at bottom of sidebar
+st.sidebar.markdown("---")
+config_source = config.get('_config_source', 'default')
+if config_source != 'default':
+    st.sidebar.caption(f"✅ Config: {config_source}")
+else:
+    st.sidebar.caption("ℹ️ Using default config")
 
 # Database Configuration
 DATABASE_NAME = config.get('DATABASE_NAME', 'db_ingest_pipeline')
@@ -239,31 +183,6 @@ def get_table_path(table_name, schema=None):
     schema = schema or SILVER_SCHEMA
     return f"{DATABASE_NAME}.{schema}.{table_name}"
 
-@st.cache_data(ttl=300)
-def get_tpa_list(_session, database_name, schema_name):
-    """Get list of active TPAs from TPA_MASTER table"""
-    try:
-        query = f"""
-        SELECT 
-            TPA_CODE,
-            TPA_NAME,
-            TPA_DESCRIPTION
-        FROM {database_name}.{schema_name}.TPA_MASTER
-        WHERE ACTIVE = TRUE
-        ORDER BY TPA_CODE
-        """
-        result = _session.sql(query).to_pandas()
-        
-        if result.empty:
-            # Return empty DataFrame with expected columns
-            return pd.DataFrame(columns=['TPA_CODE', 'TPA_NAME', 'TPA_DESCRIPTION'])
-        
-        return result
-    except Exception as e:
-        # If TPA_MASTER table doesn't exist, return empty DataFrame
-        st.warning(f"⚠️ Unable to load TPAs from TPA_MASTER table: {str(e)}")
-        return pd.DataFrame(columns=['TPA_CODE', 'TPA_NAME', 'TPA_DESCRIPTION'])
-
 def execute_query(query, show_error=True):
     """Execute a SQL query and return results as DataFrame"""
     try:
@@ -280,12 +199,6 @@ def execute_query(query, show_error=True):
                 st.error(f"Query error: {error_msg}")
         return pd.DataFrame()
 
-def get_tpa_filter_clause():
-    """Get WHERE clause for filtering by selected TPA"""
-    if st.session_state.selected_tpa:
-        return f"AND tpa = '{st.session_state.selected_tpa}'"
-    return ""
-
 
 def execute_procedure(proc_call):
     """Execute a stored procedure and return result"""
@@ -297,91 +210,6 @@ def execute_procedure(proc_call):
     except Exception as e:
         return f"Error: {str(e)}"
 
-
-# ============================================
-# TPA SELECTION IN SIDEBAR
-# ============================================
-
-# Load TPA list from Bronze schema
-tpa_df_global = get_tpa_list(session, DATABASE_NAME, BRONZE_SCHEMA)
-
-if not tpa_df_global.empty:
-    # Create TPA options dictionary for display
-    tpa_options_dict_global = {}
-    for _, row in tpa_df_global.iterrows():
-        tpa_code = row['TPA_CODE']
-        tpa_name = row['TPA_NAME']
-        tpa_options_dict_global[f"{tpa_code} - {tpa_name}"] = tpa_code
-    
-    # Tree-based navigation with expandable pages
-    st.sidebar.markdown("### 📂 Select Page & TPA")
-    
-    for page_key, page_info in PAGES.items():
-        # Create expander for each page
-        is_current = (st.session_state.selected_page == page_key)
-        
-        # Initialize expanded state for this page if not exists
-        if page_key not in st.session_state.nav_expanded:
-            st.session_state.nav_expanded[page_key] = is_current
-        
-        with st.sidebar.expander(
-            f"{page_info['icon']} {page_info['name']}" + (" ✓" if is_current else ""),
-            expanded=st.session_state.nav_expanded[page_key]
-        ):
-            # Show page description
-            st.caption(page_info['description'])
-            
-            # TPA selector within this page
-            selected_tpa_display = st.selectbox(
-                "Select TPA:",
-                options=list(tpa_options_dict_global.keys()),
-                key=f"tpa_selector_{page_key}",
-                help="All operations will be scoped to this TPA",
-                label_visibility="collapsed"
-            )
-            
-            # Get the selected TPA code
-            new_selected_tpa = tpa_options_dict_global[selected_tpa_display]
-            
-            # Button to activate this page with this TPA
-            if st.button(
-                "Open" if not is_current else "✓ Active",
-                key=f"btn_{page_key}",
-                type="primary" if not is_current else "secondary",
-                use_container_width=True,
-                disabled=is_current
-            ):
-                # Update page and TPA
-                st.session_state.selected_page = page_key
-                st.session_state.selected_tpa = new_selected_tpa
-                # Clear selected table when changing page or TPA
-                st.session_state.pop('selected_table', None)
-                # Expand this page, collapse others
-                for pk in PAGES.keys():
-                    st.session_state.nav_expanded[pk] = (pk == page_key)
-                st.rerun()
-            
-            # Show TPA description if this is the active page
-            if is_current and st.session_state.selected_tpa:
-                tpa_desc = tpa_df_global[tpa_df_global['TPA_CODE'] == st.session_state.selected_tpa]['TPA_DESCRIPTION'].iloc[0]
-                if pd.notna(tpa_desc) and tpa_desc:
-                    st.caption(f"ℹ️ {tpa_desc}")
-    
-    # Ensure selected_tpa is set
-    if st.session_state.selected_tpa is None and tpa_options_dict_global:
-        st.session_state.selected_tpa = list(tpa_options_dict_global.values())[0]
-        
-else:
-    st.sidebar.error("❌ No TPAs found. Please contact your administrator.")
-    st.session_state.selected_tpa = None
-
-# Display config info at bottom of sidebar
-st.sidebar.markdown("---")
-config_source = config.get('_config_source', 'default')
-if config_source != 'default':
-    st.sidebar.caption(f"✅ Config: {config_source}")
-else:
-    st.sidebar.caption("ℹ️ Using default config")
 
 # ============================================
 # APP CONFIGURATION
@@ -559,35 +387,8 @@ if page == "📐 Target Table Designer":
         </style>
     """, unsafe_allow_html=True)
     
-    # Get table summary filtered by selected TPA
-    # Query directly from target_schemas table to ensure TPA filtering works
-    tpa_filter = ""
-    if st.session_state.selected_tpa:
-        tpa_filter = f"AND tpa = '{st.session_state.selected_tpa}'"
-    
-    summary_query = f"""
-        SELECT 
-            table_name,
-            tpa,
-            COUNT(*) as column_count,
-            SUM(CASE WHEN NOT nullable THEN 1 ELSE 0 END) as required_columns,
-            MAX(created_timestamp) as last_modified
-        FROM {DB_SILVER}.target_schemas
-        WHERE active = TRUE {tpa_filter}
-        GROUP BY table_name, tpa
-        ORDER BY table_name
-    """
-    summary_df = execute_query(summary_query)
-    
-    # Debug info (can be removed later)
-    if summary_df.empty and st.session_state.selected_tpa:
-        # Check if there are ANY tables for this TPA
-        debug_query = f"SELECT COUNT(*) as cnt FROM {DB_SILVER}.target_schemas WHERE tpa = '{st.session_state.selected_tpa}'"
-        debug_df = execute_query(debug_query, show_error=False)
-        if not debug_df.empty:
-            count = debug_df['CNT'].iloc[0]
-            if count > 0:
-                st.info(f"ℹ️ Found {count} column definitions for TPA '{st.session_state.selected_tpa}' but they may be inactive or not grouped into tables yet.")
+    # Get table summary
+    summary_df = execute_query(f"SELECT * FROM {DB_SILVER}.v_target_schemas_summary ORDER BY table_name")
     
     # Two-column layout: Table selector on left, Details on right
     col_left, col_right = st.columns([1, 3])
@@ -667,23 +468,10 @@ if page == "📐 Target Table Designer":
         # Show create new table form
         if selected_table == '__NEW__':
             st.markdown("### ➕ Create New Table")
-            st.info(f"Creating table for TPA: **{st.session_state.selected_tpa}**")
-            
-            # Use global TPA from session state
-            if not st.session_state.selected_tpa:
-                st.error("❌ No TPA selected. Please select a TPA from the navigation sidebar.")
-                st.stop()
-            
-            new_table_tpa = st.session_state.selected_tpa
+            st.info("Enter a table name and add at least one column to create a new table definition.")
             
             with st.form("create_new_table_form", clear_on_submit=False):
-                new_table_name_base = st.text_input("Table Name*", placeholder="e.g., CLAIMS, PATIENTS", 
-                                                      help="Table name will be automatically suffixed with TPA code")
-                
-                # Show what the actual table name will be
-                if new_table_name_base:
-                    actual_table_name = f"{new_table_name_base.upper()}_{new_table_tpa.upper()}"
-                    st.caption(f"📋 Actual table name: **{actual_table_name}**")
+                new_table_name = st.text_input("Table Name*", placeholder="e.g., CUSTOMERS, ORDERS")
                 
                 st.markdown("#### First Column")
                 col1, col2 = st.columns(2)
@@ -707,26 +495,22 @@ if page == "📐 Target Table Designer":
             
             # Handle form submission outside the form context
             if submit_new_table:
-                if not new_table_name_base or not first_column_name:
+                if not new_table_name or not first_column_name:
                     st.error("❌ Table name and first column name are required")
                 else:
                     try:
-                        # Create TPA-specific table name
-                        new_table_name = f"{new_table_name_base.upper()}_{new_table_tpa.upper()}"
-                        
                         # Process default value
                         processed_default = None if first_default_value == "(None)" else first_default_value
                         
                         # Insert first column
                         insert_query = f"""
                             INSERT INTO {DB_SILVER}.target_schemas (
-                                table_name, column_name, tpa, data_type, nullable,
+                                table_name, column_name, data_type, nullable,
                                 default_value, description, active
                             )
                             VALUES (
-                                '{new_table_name}',
+                                '{new_table_name.upper()}',
                                 '{first_column_name.upper()}',
-                                '{new_table_tpa.replace(chr(39), chr(39)*2)}',
                                 '{first_data_type}',
                                 {first_nullable},
                                 {f"'{processed_default}'" if processed_default else 'NULL'},
@@ -747,13 +531,12 @@ if page == "📐 Target Table Designer":
                         for col_name, data_type, nullable, default_val, description in standard_columns:
                             std_col_query = f"""
                                 INSERT INTO {DB_SILVER}.target_schemas (
-                                    table_name, column_name, tpa, data_type, nullable,
+                                    table_name, column_name, data_type, nullable,
                                     default_value, description, active
                                 )
                                 VALUES (
-                                    '{new_table_name}',
+                                    '{new_table_name.upper()}',
                                     '{col_name}',
-                                    '{new_table_tpa.replace(chr(39), chr(39)*2)}',
                                     '{data_type}',
                                     {nullable},
                                     {f"'{default_val}'" if default_val != "NULL" else 'NULL'},
@@ -785,34 +568,19 @@ if page == "📐 Target Table Designer":
         
         # Show selected table details
         elif selected_table and selected_table != '__NEW__':
-            # Add TPA filter to ensure we only show tables for the selected TPA
-            tpa_filter_clause = f"AND tpa = '{st.session_state.selected_tpa}'" if st.session_state.selected_tpa else ""
             schema_df = execute_query(f"""
                 SELECT schema_id, column_name, data_type, nullable, 
-                       default_value, description, tpa
+                       default_value, description
                 FROM {DB_SILVER}.target_schemas
                 WHERE table_name = '{selected_table}'
                   AND active = TRUE
-                  {tpa_filter_clause}
                 ORDER BY schema_id
             """)
-            
-            # Check if table exists for the selected TPA
-            if schema_df.empty:
-                st.warning(f"⚠️ Table **{selected_table}** not found for TPA **{st.session_state.selected_tpa}**")
-                st.info("This table may belong to a different TPA. Please select a table from the list on the left.")
-                st.session_state.pop('selected_table', None)
-                st.stop()
-            
-            # Get the TPA for this table (all columns should have the same TPA)
-            table_tpa = schema_df['TPA'].iloc[0] if not schema_df.empty else None
             
             # Table name and delete button on same row
             col_title, col_delete = st.columns([4, 1])
             with col_title:
                 st.markdown(f"### 📋 {selected_table}")
-                if table_tpa:
-                    st.caption(f"🏢 TPA: **{table_tpa}**")
             with col_delete:
                 if st.button("🗑️ Delete", type="secondary", key=f"delete_btn_{selected_table}"):
                     st.session_state[f'confirm_delete_{selected_table}'] = True
@@ -825,8 +593,8 @@ if page == "📐 Target Table Designer":
                 # Prepare dataframe for editing
                 edit_df = schema_df.copy()
                 
-                # Drop the Nullable and TPA columns (TPA is shown in header, Nullable is handled by default values)
-                edit_df = edit_df.drop(columns=['NULLABLE', 'TPA'])
+                # Drop the Nullable column as it's handled by default values
+                edit_df = edit_df.drop(columns=['NULLABLE'])
                 
                 edit_df = edit_df.rename(columns={
                     'SCHEMA_ID': 'ID',
@@ -892,13 +660,12 @@ if page == "📐 Target Table Designer":
                                 
                                 insert_query = f"""
                                     INSERT INTO {DB_SILVER}.target_schemas (
-                                        table_name, column_name, tpa, data_type, nullable,
+                                        table_name, column_name, data_type, nullable,
                                         default_value, description, active
                                     )
                                     VALUES (
                                         '{selected_table}',
                                         '{str(row["Column Name"]).upper()}',
-                                        '{table_tpa.replace(chr(39), chr(39)*2)}',
                                         '{row.get("Data Type", "VARCHAR")}',
                                         TRUE,
                                         {f"'{processed_default}'" if processed_default else 'NULL'},
@@ -1024,7 +791,7 @@ if page == "🗺️ Field Mapper":
         
         if selected_filter_table != "(All Tables)":
             mappings_query = f"""
-            SELECT mapping_id, tpa, source_table, source_field, target_table, target_column,
+            SELECT mapping_id, source_table, source_field, target_table, target_column,
                    mapping_method, confidence_score, approved, approved_by, approved_timestamp,
                    transformation_logic, description, created_timestamp
                 FROM {DB_SILVER}.field_mappings
@@ -1033,7 +800,7 @@ if page == "🗺️ Field Mapper":
             """
         else:
             mappings_query = f"""
-                SELECT mapping_id, tpa, source_table, source_field, target_table, target_column,
+                SELECT mapping_id, source_table, source_field, target_table, target_column,
                        mapping_method, confidence_score, approved, approved_by, approved_timestamp,
                        transformation_logic, description, created_timestamp
                 FROM {DB_SILVER}.field_mappings
@@ -1061,9 +828,9 @@ if page == "🗺️ Field Mapper":
             
             mappings_df['STATUS'] = mappings_df.apply(get_status_indicator, axis=1)
             
-            # Reorder columns to put STATUS first (exclude IS_DUPLICATE)
-            cols = ['STATUS', 'MAPPING_ID', 'TPA', 'SOURCE_TABLE', 'SOURCE_FIELD', 'TARGET_TABLE', 'TARGET_COLUMN', 
-                    'MAPPING_METHOD', 'CONFIDENCE_SCORE', 'APPROVED', 'APPROVED_BY', 'APPROVED_TIMESTAMP',
+            # Reorder columns: STATUS, APPROVED, SOURCE_FIELD, TARGET_COLUMN first
+            cols = ['STATUS', 'APPROVED', 'SOURCE_FIELD', 'TARGET_COLUMN', 'MAPPING_ID', 'SOURCE_TABLE', 'TARGET_TABLE',
+                    'MAPPING_METHOD', 'CONFIDENCE_SCORE', 'APPROVED_BY', 'APPROVED_TIMESTAMP',
                     'TRANSFORMATION_LOGIC', 'DESCRIPTION', 'CREATED_TIMESTAMP']
             display_df = mappings_df[cols]
             
@@ -1085,7 +852,6 @@ if page == "🗺️ Field Mapper":
                 column_config={
                     "STATUS": st.column_config.TextColumn("Status", width="medium", disabled=True, help="⚠️ PENDING = Not approved, ✅ APPROVED = Ready to use, 🔴 DUPLICATE = Duplicate mapping"),
                     "MAPPING_ID": st.column_config.NumberColumn("ID", format="%d", disabled=True),
-                    "TPA": st.column_config.TextColumn("TPA", width="medium", disabled=True, help="Third Party Administrator - required dimension for all mappings"),
                     "SOURCE_TABLE": st.column_config.TextColumn("Source Table", disabled=True),
                     "SOURCE_FIELD": st.column_config.TextColumn("Source Field", disabled=True),
                     "TARGET_TABLE": st.column_config.TextColumn("Target Table", disabled=True),
@@ -1231,112 +997,76 @@ if page == "🗺️ Field Mapper":
             else:
                 st.warning(f"⚠️ Found {data_count} records but no fields could be extracted. Records may have NULL RAW_DATA.")
         
-        # Get available target tables for selected TPA
-        tpa_filter = get_tpa_filter_clause()
-        target_tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE {tpa_filter} ORDER BY table_name")
+        # Get available target tables
+        target_tables_df = execute_query(f"SELECT DISTINCT table_name FROM {DB_SILVER}.target_schemas WHERE active = TRUE ORDER BY table_name")
         target_tables = target_tables_df['TABLE_NAME'].tolist() if not target_tables_df.empty else []
         
         if not target_tables:
             st.warning("⚠️ No target tables defined. Create tables in Target Table Designer first.")
         
-        # Use global TPA from session state
-        if not st.session_state.selected_tpa:
-            st.error("❌ No TPA selected. Please select a TPA from the navigation sidebar.")
-            st.stop()
-        
-        selected_tpa = st.session_state.selected_tpa
-        st.info(f"Creating mapping for TPA: **{selected_tpa}**")
-        
-        # Manual mapping form - restructured to allow dynamic column dropdown
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**Source (Bronze)**")
-            if source_fields:
-                source_field = st.selectbox("Source Field*", options=[""] + source_fields, key="manual_source_field")
-            else:
-                st.warning("No source fields found in RAW_DATA_TABLE")
-                source_field = st.text_input("Source Field (manual entry)*", key="manual_source_field_text")
+        with st.form("manual_mapping_form"):
+            col1, col2 = st.columns(2)
             
-            source_table = st.text_input("Source Table", value="RAW_DATA_TABLE", disabled=True, key="manual_source_table")
-        
-        with col2:
-            st.markdown("**Target (Silver)**")
-            # Target table dropdown
-            if target_tables:
-                target_table = st.selectbox("Target Table*", options=[""] + target_tables, key="manual_target_table")
-            else:
-                target_table = st.text_input("Target Table* (manual entry)", key="manual_target_table_text")
-            
-            # Target column dropdown - dynamically populated based on selected table
-            target_column = ""
-            if target_table:
-                # Get columns for the selected target table
-                tpa_filter = get_tpa_filter_clause()
-                target_columns_df = execute_query(f"""
-                    SELECT DISTINCT column_name
-                    FROM {DB_SILVER}.target_schemas
-                    WHERE table_name = '{target_table.upper()}'
-                      AND active = TRUE
-                      {tpa_filter}
-                    ORDER BY column_name
-                """, show_error=False)
-                
-                if not target_columns_df.empty:
-                    target_columns_list = target_columns_df['COLUMN_NAME'].tolist()
-                    target_column = st.selectbox(
-                        "Target Column*",
-                        options=[""] + target_columns_list,
-                        key="manual_target_column",
-                        help="Select the target column from the table schema"
-                    )
+            with col1:
+                st.markdown("**Source (Bronze)**")
+                if source_fields:
+                    source_field = st.selectbox("Source Field*", options=[""] + source_fields, key="manual_source_field")
                 else:
-                    st.warning(f"⚠️ No columns found for table '{target_table}'. Define the table schema in Target Table Designer first.")
-                    target_column = st.text_input("Target Column* (manual entry)", key="manual_target_column_fallback")
-            else:
-                st.info("💡 Select a target table first to see available columns")
-                target_column = ""
-        
-        transformation = st.text_input(
-            "Transformation Logic (optional)",
-            help="SQL expression, e.g., UPPER(field), field::NUMBER",
-            key="manual_transformation"
-        )
-        description = st.text_area("Description", key="manual_description")
-        
-        submitted = st.button("Create Mapping", type="primary", key="manual_mapping_submit")
-        
-        if submitted:
-            if not source_field or not target_table or not target_column:
-                st.error("Source field, target table, and target column are required")
-            else:
-                # Escape single quotes in string values
-                transformation_sql = f"'{transformation.replace(chr(39), chr(39)*2)}'" if transformation else 'NULL'
-                description_sql = f"'{description.replace(chr(39), chr(39)*2)}'" if description else 'NULL'
+                    st.warning("No source fields found in RAW_DATA_TABLE")
+                    source_field = st.text_input("Source Field (manual entry)*")
                 
-                insert_query = f"""
-                    INSERT INTO {DB_SILVER}.field_mappings (
-                        source_field, source_table, target_table, target_column,
-                        tpa, mapping_method, confidence_score, transformation_logic,
-                        description, approved
-                    )
-                    VALUES (
-                        '{source_field.upper().replace(chr(39), chr(39)*2)}',
-                        '{source_table.upper().replace(chr(39), chr(39)*2)}',
-                        '{target_table.upper().replace(chr(39), chr(39)*2)}',
-                        '{target_column.upper().replace(chr(39), chr(39)*2)}',
-                        '{selected_tpa.replace(chr(39), chr(39)*2)}',
-                        'MANUAL',
-                        1.0,
-                        {transformation_sql},
-                        {description_sql},
-                        TRUE
-                    )
-                """
+                source_table = st.text_input("Source Table", value="RAW_DATA_TABLE", disabled=True)
+            
+            with col2:
+                st.markdown("**Target (Silver)**")
+                # Target table dropdown
+                if target_tables:
+                    target_table = st.selectbox("Target Table*", options=[""] + target_tables, key="manual_target_table")
+                else:
+                    target_table = st.text_input("Target Table* (manual entry)", key="manual_target_table_text")
                 
-                execute_query(insert_query)
-                st.success(f"✅ Created mapping for TPA '{selected_tpa}': {source_field} → {target_table}.{target_column}")
-                st.rerun()
+                # Target column - manual entry since we can't dynamically load columns in a form
+                target_column = st.text_input("Target Column* (manual entry)", key="manual_target_column_text", 
+                                             help="Enter the target column name. You can view available columns in the Target Table Designer.")
+            
+            transformation = st.text_input(
+                "Transformation Logic (optional)",
+                help="SQL expression, e.g., UPPER(field), field::NUMBER"
+            )
+            description = st.text_area("Description")
+            
+            submitted = st.form_submit_button("Create Mapping")
+            
+            if submitted:
+                if not source_field or not target_table or not target_column:
+                    st.error("Source field, target table, and target column are required")
+                else:
+                    # Escape single quotes in string values
+                    transformation_sql = f"'{transformation.replace(chr(39), chr(39)*2)}'" if transformation else 'NULL'
+                    description_sql = f"'{description.replace(chr(39), chr(39)*2)}'" if description else 'NULL'
+                    
+                    insert_query = f"""
+                        INSERT INTO {DB_SILVER}.field_mappings (
+                            source_field, source_table, target_table, target_column,
+                            mapping_method, confidence_score, transformation_logic,
+                            description, approved
+                        )
+                        VALUES (
+                            '{source_field.upper().replace(chr(39), chr(39)*2)}',
+                            '{source_table.upper().replace(chr(39), chr(39)*2)}',
+                            '{target_table.upper().replace(chr(39), chr(39)*2)}',
+                            '{target_column.upper().replace(chr(39), chr(39)*2)}',
+                            'MANUAL',
+                            1.0,
+                            {transformation_sql},
+                            {description_sql},
+                            TRUE
+                        )
+                    """
+                    
+                    execute_query(insert_query)
+                    st.success(f"Created mapping: {source_field} → {target_table}.{target_column}")
+                    st.rerun()
     
     with tab3:
         st.subheader("ML-Based Auto-Mapping")
@@ -1427,141 +1157,10 @@ if page == "🗺️ Field Mapper":
                     )
                     st.info(result)
                     
-                    if "Successfully" in result or "inserted" in result.lower():
-                        # Fetch the newly generated mappings (unapproved)
-                        pending_mappings_query = f"""
-                            SELECT 
-                                mapping_id,
-                                source_field,
-                                source_table,
-                                target_table,
-                                target_column,
-                                transformation_logic,
-                                confidence_score,
-                                description
-                            FROM {DB_SILVER}.field_mappings
-                            WHERE target_table = '{target_table_llm}'
-                              AND approved = FALSE
-                              AND mapping_method = 'LLM_CORTEX'
-                            ORDER BY confidence_score DESC, source_field
-                        """
-                        pending_mappings_df = execute_query(pending_mappings_query, show_error=False)
-                        
-                        if not pending_mappings_df.empty:
-                            # Store in session state for approval dialog
-                            st.session_state['pending_llm_mappings'] = pending_mappings_df
-                            st.session_state['show_approval_dialog'] = True
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ Mappings were generated but none are pending approval.")
-            
-            # Show approval dialog if there are pending mappings
-            if st.session_state.get('show_approval_dialog', False) and 'pending_llm_mappings' in st.session_state:
-                st.markdown("---")
-                st.markdown("### 🔍 Review & Approve Generated Mappings")
-                st.info("👇 Review the mappings below. Select the ones you want to approve and click 'Approve Selected'.")
-                
-                pending_df = st.session_state['pending_llm_mappings']
-                
-                # Create approval checkboxes for each mapping
-                st.markdown("**Generated Mappings:**")
-                
-                # Initialize approval state if not exists
-                if 'mapping_approvals' not in st.session_state:
-                    st.session_state['mapping_approvals'] = {row['MAPPING_ID']: True for _, row in pending_df.iterrows()}
-                
-                # Display mappings in a nice format
-                for idx, row in pending_df.iterrows():
-                    mapping_id = row['MAPPING_ID']
-                    confidence = row['CONFIDENCE_SCORE'] if pd.notna(row['CONFIDENCE_SCORE']) else 0.0
-                    
-                    # Create expandable section for each mapping
-                    with st.expander(
-                        f"{'✅' if st.session_state['mapping_approvals'].get(mapping_id, True) else '❌'} "
-                        f"{row['SOURCE_FIELD']} → {row['TARGET_TABLE']}.{row['TARGET_COLUMN']} "
-                        f"(Confidence: {confidence:.0%})",
-                        expanded=False
-                    ):
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.markdown(f"**Source Field:** `{row['SOURCE_FIELD']}`")
-                            st.markdown(f"**Target:** `{row['TARGET_TABLE']}.{row['TARGET_COLUMN']}`")
-                            if pd.notna(row['TRANSFORMATION_LOGIC']) and row['TRANSFORMATION_LOGIC']:
-                                st.markdown(f"**Transformation:** `{row['TRANSFORMATION_LOGIC']}`")
-                            if pd.notna(row['DESCRIPTION']) and row['DESCRIPTION']:
-                                st.caption(f"💡 {row['DESCRIPTION']}")
-                        
-                        with col2:
-                            # Approval checkbox
-                            approved = st.checkbox(
-                                "Approve",
-                                value=st.session_state['mapping_approvals'].get(mapping_id, True),
-                                key=f"approve_mapping_{mapping_id}"
-                            )
-                            st.session_state['mapping_approvals'][mapping_id] = approved
-                
-                # Action buttons
-                st.markdown("---")
-                col1, col2, col3 = st.columns([2, 2, 1])
-                
-                with col1:
-                    if st.button("✅ Approve Selected", type="primary", use_container_width=True):
-                        approved_count = 0
-                        rejected_count = 0
-                        
-                        for mapping_id, approved in st.session_state['mapping_approvals'].items():
-                            if approved:
-                                # Approve the mapping
-                                update_query = f"""
-                                    UPDATE {DB_SILVER}.field_mappings
-                                    SET approved = TRUE,
-                                        updated_timestamp = CURRENT_TIMESTAMP()
-                                    WHERE mapping_id = {mapping_id}
-                                """
-                                execute_query(update_query, show_error=False)
-                                approved_count += 1
-                            else:
-                                # Delete rejected mapping
-                                delete_query = f"""
-                                    DELETE FROM {DB_SILVER}.field_mappings
-                                    WHERE mapping_id = {mapping_id}
-                                """
-                                execute_query(delete_query, show_error=False)
-                                rejected_count += 1
-                        
-                        st.success(f"✅ Approved {approved_count} mapping(s), rejected {rejected_count}")
-                        
-                        # Clear session state
-                        st.session_state.pop('pending_llm_mappings', None)
-                        st.session_state.pop('show_approval_dialog', None)
-                        st.session_state.pop('mapping_approvals', None)
+                    if "Successfully" in result:
+                        st.success(f"✅ LLM mappings generated for {target_table_llm}!")
+                        # Set flag to show notification banner
                         st.session_state.mappings_just_generated = True
-                        st.rerun()
-                
-                with col2:
-                    if st.button("❌ Reject All", use_container_width=True):
-                        # Delete all pending mappings
-                        for mapping_id in st.session_state['mapping_approvals'].keys():
-                            delete_query = f"""
-                                DELETE FROM {DB_SILVER}.field_mappings
-                                WHERE mapping_id = {mapping_id}
-                            """
-                            execute_query(delete_query, show_error=False)
-                        
-                        st.warning(f"❌ Rejected all {len(st.session_state['mapping_approvals'])} mappings")
-                        
-                        # Clear session state
-                        st.session_state.pop('pending_llm_mappings', None)
-                        st.session_state.pop('show_approval_dialog', None)
-                        st.session_state.pop('mapping_approvals', None)
-                        st.rerun()
-                
-                with col3:
-                    if st.button("Cancel", use_container_width=True):
-                        # Just close the dialog, leave mappings as unapproved
-                        st.session_state.pop('show_approval_dialog', None)
-                        st.session_state.pop('mapping_approvals', None)
                         st.rerun()
     
     with tab5:
@@ -2268,7 +1867,7 @@ if page == "⚙️ Rules Engine":
         where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
         
         rules_df = execute_query(f"""
-            SELECT rule_id, rule_name, rule_type, tpa, target_table, target_column,
+            SELECT rule_id, rule_name, rule_type, target_table, target_column,
                    rule_logic, priority, error_action, active, created_timestamp, description
             FROM {DB_SILVER}.transformation_rules
             WHERE {where_clause}
@@ -2283,7 +1882,6 @@ if page == "⚙️ Rules Engine":
                     "RULE_ID": st.column_config.TextColumn("Rule ID", width="small"),
                     "RULE_NAME": st.column_config.TextColumn("Name", width="medium"),
                     "RULE_TYPE": st.column_config.TextColumn("Type", width="small"),
-                    "TPA": st.column_config.TextColumn("TPA", width="medium", help="Third Party Administrator - required dimension for all rules"),
                     "TARGET_TABLE": st.column_config.TextColumn("Table", width="small"),
                     "TARGET_COLUMN": st.column_config.TextColumn("Column", width="small"),
                     "RULE_LOGIC": st.column_config.TextColumn("Logic", width="large"),
@@ -2330,14 +1928,6 @@ if page == "⚙️ Rules Engine":
             ORDER BY table_name
         """)
         available_tables = [""] + (target_tables_df['TABLE_NAME'].tolist() if not target_tables_df.empty else [])
-        
-        # Use global TPA from session state
-        if not st.session_state.selected_tpa:
-            st.error("❌ No TPA selected. Please select a TPA from the navigation sidebar.")
-            st.stop()
-        
-        selected_tpa = st.session_state.selected_tpa
-        st.info(f"Creating rule for TPA: **{selected_tpa}**")
         
         # Rule templates/examples
         with st.expander("📚 Rule Examples & Templates", expanded=False):
@@ -2472,7 +2062,7 @@ if page == "⚙️ Rules Engine":
                     insert_query = f"""
                         INSERT INTO {DB_SILVER}.transformation_rules (
                             rule_id, rule_name, rule_type, target_table, target_column,
-                            tpa, rule_logic, rule_parameters, priority, error_action, description, active
+                            rule_logic, rule_parameters, priority, error_action, description, active
                         )
                         VALUES (
                             '{rule_id.upper()}',
@@ -2480,7 +2070,6 @@ if page == "⚙️ Rules Engine":
                             '{rule_type}',
                             {f"'{selected_table.upper()}'" if selected_table else 'NULL'},
                             {f"'{target_column.upper()}'" if target_column else 'NULL'},
-                            '{selected_tpa.replace(chr(39), chr(39)*2)}',
                             '{safe_rule_logic}',
                             {params_value},
                             {priority},
@@ -2492,7 +2081,7 @@ if page == "⚙️ Rules Engine":
                     
                     try:
                         execute_query(insert_query)
-                        st.success(f"✅ Created rule for TPA '{selected_tpa}': {rule_id}")
+                        st.success(f"✅ Created rule: {rule_id}")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error creating rule: {str(e)}")
