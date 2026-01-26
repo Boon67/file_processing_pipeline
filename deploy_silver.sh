@@ -445,6 +445,7 @@ replace_variables() {
     cp "$input_file" "$output_file"
     
     # Replace complex IDENTIFIER() patterns with concatenation first (most specific)
+    sed_inplace "s/IDENTIFIER(\\\$DATABASE_NAME || '\\.' || \\\$BRONZE_SCHEMA_NAME || '\\.RAW_DATA_TABLE')/IDENTIFIER('${DATABASE_NAME}.${SCHEMA_NAME}.RAW_DATA_TABLE')/g" "$output_file"
     sed_inplace "s/IDENTIFIER(\\\$DATABASE_NAME || '\\.' || \\\$BRONZE_SCHEMA_NAME)/IDENTIFIER('${DATABASE_NAME}.${SCHEMA_NAME}')/g" "$output_file"
     sed_inplace "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.' || :source_table)/IDENTIFIER('${SCHEMA_NAME}' || '.' || :source_table)/g" "$output_file"
     sed_inplace "s/IDENTIFIER(\\\$BRONZE_SCHEMA_NAME || '\\.RAW_DATA_TABLE')/IDENTIFIER('${SCHEMA_NAME}.RAW_DATA_TABLE')/g" "$output_file"

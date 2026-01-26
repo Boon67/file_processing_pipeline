@@ -722,3 +722,98 @@ GROUP BY tf.table_name, tf.column_name
 ORDER BY tf.table_name, tf.column_name;
 
 COMMENT ON VIEW v_unmapped_target_fields IS 'Shows target table columns that have no field mappings defined. Useful for identifying gaps in mapping coverage and ensuring all required fields are mapped from Bronze sources. Shows which TPAs have mappings for each field.';
+
+-- View: File Mapping Coverage
+-- Provides per-file mapping coverage statistics for each target table
+CREATE OR REPLACE VIEW v_file_mapping_coverage AS
+WITH source_files AS (
+    -- Get distinct files and their source columns from Bronze layer
+    SELECT DISTINCT
+        FILE_NAME,
+        TPA,
+        OBJECT_KEYS(RAW_DATA) AS source_columns
+    FROM IDENTIFIER($DATABASE_NAME || '.' || $BRONZE_SCHEMA_NAME || '.RAW_DATA_TABLE')
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY FILE_NAME ORDER BY LOAD_TIMESTAMP DESC) = 1
+),
+file_columns AS (
+    -- Flatten the source columns array
+    SELECT 
+        sf.FILE_NAME,
+        sf.TPA,
+        col.value::STRING AS source_column
+    FROM source_files sf,
+    LATERAL FLATTEN(input => sf.source_columns) col
+),
+target_tables AS (
+    -- Get all active target tables
+    SELECT DISTINCT table_name
+    FROM target_schemas
+    WHERE active = TRUE
+),
+file_mappings AS (
+    -- Get mappings for each file/target combination
+    SELECT 
+        fc.FILE_NAME,
+        fc.TPA,
+        tt.table_name AS target_table,
+        fc.source_column,
+        fm.target_column,
+        fm.mapping_id
+    FROM file_columns fc
+    CROSS JOIN target_tables tt
+    LEFT JOIN field_mappings fm
+        ON UPPER(TRIM(fc.source_column)) = UPPER(TRIM(fm.source_field))
+        AND fm.target_table = tt.table_name
+        AND fm.approved = TRUE
+        AND (fm.tpa = fc.TPA OR fm.tpa IS NULL)
+),
+mapped_columns_agg AS (
+    -- Aggregate mapped columns separately
+    SELECT
+        FILE_NAME,
+        target_table,
+        ARRAY_AGG(DISTINCT source_column) WITHIN GROUP (ORDER BY source_column) AS mapped_column_list,
+        ARRAY_AGG(DISTINCT target_column) WITHIN GROUP (ORDER BY target_column) AS target_column_list
+    FROM file_mappings
+    WHERE mapping_id IS NOT NULL
+    GROUP BY FILE_NAME, target_table
+),
+coverage_stats AS (
+    -- Calculate coverage statistics
+    SELECT
+        fm.FILE_NAME,
+        fm.target_table,
+        COUNT(DISTINCT fm.source_column) AS total_source_columns,
+        COUNT(DISTINCT CASE WHEN fm.mapping_id IS NOT NULL THEN fm.source_column END) AS mapped_columns,
+        COUNT(DISTINCT CASE WHEN fm.mapping_id IS NULL THEN fm.source_column END) AS unmapped_columns,
+        ROUND(
+            (COUNT(DISTINCT CASE WHEN fm.mapping_id IS NOT NULL THEN fm.source_column END)::FLOAT / 
+             NULLIF(COUNT(DISTINCT fm.source_column), 0)) * 100, 
+            2
+        ) AS mapping_coverage_pct,
+        ARRAY_AGG(DISTINCT fm.source_column) WITHIN GROUP (ORDER BY fm.source_column) AS all_source_columns
+    FROM file_mappings fm
+    GROUP BY fm.FILE_NAME, fm.target_table
+)
+SELECT
+    cs.FILE_NAME AS file_name,
+    cs.target_table,
+    cs.total_source_columns,
+    cs.mapped_columns,
+    cs.unmapped_columns,
+    COALESCE(cs.mapping_coverage_pct, 0) AS mapping_coverage_pct,
+    CASE
+        WHEN cs.mapping_coverage_pct >= 80 THEN '✅ Good'
+        WHEN cs.mapping_coverage_pct >= 50 THEN '⚠️ Fair'
+        ELSE '❌ Poor'
+    END AS coverage_status,
+    cs.all_source_columns,
+    COALESCE(mca.mapped_column_list, ARRAY_CONSTRUCT()) AS mapped_column_list,
+    COALESCE(mca.target_column_list, ARRAY_CONSTRUCT()) AS target_column_list
+FROM coverage_stats cs
+LEFT JOIN mapped_columns_agg mca
+    ON cs.FILE_NAME = mca.FILE_NAME
+    AND cs.target_table = mca.target_table
+ORDER BY cs.target_table, cs.mapping_coverage_pct DESC, cs.FILE_NAME;
+
+COMMENT ON VIEW v_file_mapping_coverage IS 'Provides per-file mapping coverage statistics showing how many source columns from each Bronze file are mapped to each target table. Used by Streamlit app to display mapping completeness and identify gaps.';
