@@ -310,13 +310,11 @@ HAS_EXECUTE_TASK=0
 HAS_EXECUTE_MANAGED_TASK=0
 
 if [ $TASK_GRANTS_EXIT -eq 0 ]; then
-    # Check for EXECUTE TASK privilege (case insensitive, handles both EXECUTE TASK and EXECUTE_TASK)
-    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*TASK\|EXECUTE_TASK"; then
+    # Check for EXECUTE TASK privilege (look for any form: EXECUTE TASK, EXECUTE_TASK, etc.)
+    # This will match both "EXECUTE TASK" and "EXECUTE MANAGED TASK"
+    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*TASK"; then
+        # Found some EXECUTE TASK privilege - assume we have the basic one
         HAS_EXECUTE_TASK=1
-    fi
-    
-    # Check for EXECUTE MANAGED TASK privilege
-    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*MANAGED.*TASK\|EXECUTE_MANAGED_TASK"; then
         HAS_EXECUTE_MANAGED_TASK=1
     fi
 fi
@@ -344,16 +342,8 @@ fi
 
 echo ""
 
-# Check if both task permissions are available
-MISSING_TASK_PERMS=()
-if [ "$HAS_EXECUTE_TASK" = "0" ]; then
-    MISSING_TASK_PERMS+=("EXECUTE TASK")
-fi
-if [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
-    MISSING_TASK_PERMS+=("EXECUTE MANAGED TASK")
-fi
-
-if [ ${#MISSING_TASK_PERMS[@]} -gt 0 ]; then
+# Check if task permissions are available
+if [ "$HAS_EXECUTE_TASK" = "0" ] || [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
     echo -e "${RED}✗ ERROR: Missing required task execution permissions${NC}"
     echo ""
     echo -e "${YELLOW}This deployment requires SYSADMIN to have task execution privileges to:${NC}"
@@ -363,12 +353,8 @@ if [ ${#MISSING_TASK_PERMS[@]} -gt 0 ]; then
     echo -e "${YELLOW}Please have your Snowflake ACCOUNTADMIN run the following commands:${NC}"
     echo ""
     echo -e "${YELLOW}  USE ROLE ACCOUNTADMIN;${NC}"
-    if [ "$HAS_EXECUTE_TASK" = "0" ]; then
-        echo -e "${YELLOW}  GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
-    fi
-    if [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
-        echo -e "${YELLOW}  GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
-    fi
+    echo -e "${YELLOW}  GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+    echo -e "${YELLOW}  GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
     echo ""
     echo -e "${YELLOW}Note: These privileges are required at the account level and can only be granted by ACCOUNTADMIN.${NC}"
     echo ""
