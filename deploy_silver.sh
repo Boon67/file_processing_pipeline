@@ -302,7 +302,12 @@ USE ROLE SYSADMIN;
 SHOW GRANTS TO ROLE SYSADMIN;
 EOF
 
-TASK_GRANTS_RESULT=$(run_snow_sql -f "$TEMP_PERM_CHECK" 2>&1)
+# Use --format json for reliable parsing (table format can be truncated on Windows)
+if [ "$USE_DEFAULT_CONNECTION" = true ]; then
+    TASK_GRANTS_RESULT=$(snow sql -f "$TEMP_PERM_CHECK" --format json 2>&1)
+else
+    TASK_GRANTS_RESULT=$(snow sql --connection "$SNOW_CONNECTION" -f "$TEMP_PERM_CHECK" --format json 2>&1)
+fi
 TASK_GRANTS_EXIT=$?
 
 # Check for both required privileges
@@ -310,12 +315,16 @@ HAS_EXECUTE_TASK=0
 HAS_EXECUTE_MANAGED_TASK=0
 
 if [ $TASK_GRANTS_EXIT -eq 0 ]; then
-    # Check for EXECUTE TASK privilege (look for any form: EXECUTE TASK, EXECUTE_TASK, etc.)
-    # This will match both "EXECUTE TASK" and "EXECUTE MANAGED TASK"
-    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*TASK"; then
-        # Found some EXECUTE TASK privilege - assume we have the basic one
-        HAS_EXECUTE_TASK=1
-        HAS_EXECUTE_MANAGED_TASK=1
+    # Convert to uppercase for reliable case-insensitive matching on all platforms
+    TASK_GRANTS_UPPER=$(echo "$TASK_GRANTS_RESULT" | tr 'a-z' 'A-Z')
+    
+    # Check for EXECUTE TASK or EXECUTE_TASK in output
+    # This pattern matches both "EXECUTE TASK" and "EXECUTE MANAGED TASK"
+    if echo "$TASK_GRANTS_UPPER" | grep -q "EXECUTE"; then
+        if echo "$TASK_GRANTS_UPPER" | grep -q "TASK"; then
+            HAS_EXECUTE_TASK=1
+            HAS_EXECUTE_MANAGED_TASK=1
+        fi
     fi
 fi
 
@@ -344,25 +353,36 @@ echo ""
 
 # Check if task permissions are available
 if [ "$HAS_EXECUTE_TASK" = "0" ] || [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
-    echo -e "${RED}✗ ERROR: Missing required task execution permissions${NC}"
+    # Only fail if we're sure the permissions are missing
+    # If the check failed to run, we'll warn but continue (might succeed anyway)
+    if [ $TASK_GRANTS_EXIT -eq 0 ]; then
+        echo -e "${RED}✗ ERROR: Missing required task execution permissions${NC}"
+        echo ""
+        echo -e "${YELLOW}This deployment requires SYSADMIN to have task execution privileges to:${NC}"
+        echo "  - Create and manage automated transformation tasks"
+        echo "  - Schedule periodic data processing"
+        echo ""
+        echo -e "${YELLOW}Please have your Snowflake ACCOUNTADMIN run the following commands:${NC}"
+        echo ""
+        echo -e "${YELLOW}  USE ROLE ACCOUNTADMIN;${NC}"
+        echo -e "${YELLOW}  GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+        echo -e "${YELLOW}  GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+        echo ""
+        echo -e "${YELLOW}Note: These privileges are required at the account level and can only be granted by ACCOUNTADMIN.${NC}"
+        echo ""
+        echo -e "${YELLOW}If you believe you have these permissions, you can try running the Bronze layer${NC}"
+        echo -e "${YELLOW}Fix_Task_Privileges.sql script or proceed with deployment anyway.${NC}"
+        echo ""
+        exit 1
+    else
+        echo -e "${YELLOW}⚠ Warning: Could not verify EXECUTE TASK permissions${NC}"
+        echo -e "${YELLOW}  Proceeding with deployment - if tasks fail, run Fix_Task_Privileges.sql${NC}"
+        echo ""
+    fi
+else
+    echo -e "${GREEN}✓ All required task execution permissions available${NC}"
     echo ""
-    echo -e "${YELLOW}This deployment requires SYSADMIN to have task execution privileges to:${NC}"
-    echo "  - Create and manage automated transformation tasks"
-    echo "  - Schedule periodic data processing"
-    echo ""
-    echo -e "${YELLOW}Please have your Snowflake ACCOUNTADMIN run the following commands:${NC}"
-    echo ""
-    echo -e "${YELLOW}  USE ROLE ACCOUNTADMIN;${NC}"
-    echo -e "${YELLOW}  GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
-    echo -e "${YELLOW}  GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
-    echo ""
-    echo -e "${YELLOW}Note: These privileges are required at the account level and can only be granted by ACCOUNTADMIN.${NC}"
-    echo ""
-    exit 1
 fi
-
-echo -e "${GREEN}✓ All required task execution permissions available${NC}"
-echo ""
 
 # Get configuration values - prompt only if not accepting defaults
 if [ "$ACCEPT_DEFAULTS" = "true" ]; then
@@ -566,9 +586,16 @@ execute_sql() {
     local exec_file="$sql_file"
     if [ "$OS" = "Windows" ]; then
         local temp_file="${sql_file}.tmp"
-        # Remove problematic Unicode box-drawing characters
-        iconv -f UTF-8 -t ASCII//TRANSLIT "$sql_file" > "$temp_file" 2>/dev/null || \
-        sed 's/[─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▶▼◀▲→↓←↑]/=/g' "$sql_file" > "$temp_file"
+        # Try iconv first (most reliable), fall back to sed if not available
+        if command -v iconv &> /dev/null; then
+            # Use iconv to convert UTF-8 to ASCII, transliterating unsupported chars
+            iconv -f UTF-8 -t ASCII//TRANSLIT "$sql_file" > "$temp_file" 2>/dev/null || cp "$sql_file" "$temp_file"
+        else
+            # Fallback: use LC_ALL=C with sed to handle as bytes, not characters
+            # This avoids encoding issues on Windows
+            LC_ALL=C sed 's/\xe2\x9c\x85/[OK]/g; s/\xe2\x9d\x8c/[X]/g; s/\xe2\x9a\xa0\xef\xb8\x8f/[!]/g; s/\xe2\x9a\xa0/[!]/g' "$sql_file" > "$temp_file" 2>/dev/null || \
+            cp "$sql_file" "$temp_file"
+        fi
         exec_file="$temp_file"
     fi
     

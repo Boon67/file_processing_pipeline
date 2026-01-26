@@ -803,9 +803,9 @@ SELECT
     cs.unmapped_columns,
     COALESCE(cs.mapping_coverage_pct, 0) AS mapping_coverage_pct,
     CASE
-        WHEN cs.mapping_coverage_pct >= 80 THEN '✅ Good'
-        WHEN cs.mapping_coverage_pct >= 50 THEN '⚠️ Fair'
-        ELSE '❌ Poor'
+        WHEN cs.mapping_coverage_pct >= 80 THEN 'Good'
+        WHEN cs.mapping_coverage_pct >= 50 THEN 'Fair'
+        ELSE 'Poor'
     END AS coverage_status,
     cs.all_source_columns,
     COALESCE(mca.mapped_column_list, ARRAY_CONSTRUCT()) AS mapped_column_list,
