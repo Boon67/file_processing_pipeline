@@ -287,6 +287,97 @@ fi
 echo -e "${GREEN}✓ All required roles available - proceeding with deployment${NC}"
 echo ""
 
+# Check for EXECUTE TASK permissions on SYSADMIN
+echo -e "${BLUE}Checking EXECUTE TASK permissions on SYSADMIN role...${NC}"
+
+# Temporarily disable exit on error for permission checks
+set +e
+
+# Create temp file for permission checks
+TEMP_PERM_CHECK=$(mktemp)
+
+# Check if SYSADMIN has EXECUTE TASK privilege
+cat > "$TEMP_PERM_CHECK" << 'EOF'
+USE ROLE SYSADMIN;
+SHOW GRANTS TO ROLE SYSADMIN;
+EOF
+
+TASK_GRANTS_RESULT=$(run_snow_sql -f "$TEMP_PERM_CHECK" 2>&1)
+TASK_GRANTS_EXIT=$?
+
+# Check for both required privileges
+HAS_EXECUTE_TASK=0
+HAS_EXECUTE_MANAGED_TASK=0
+
+if [ $TASK_GRANTS_EXIT -eq 0 ]; then
+    # Check for EXECUTE TASK privilege (case insensitive, handles both EXECUTE TASK and EXECUTE_TASK)
+    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*TASK\|EXECUTE_TASK"; then
+        HAS_EXECUTE_TASK=1
+    fi
+    
+    # Check for EXECUTE MANAGED TASK privilege
+    if echo "$TASK_GRANTS_RESULT" | grep -qi "EXECUTE.*MANAGED.*TASK\|EXECUTE_MANAGED_TASK"; then
+        HAS_EXECUTE_MANAGED_TASK=1
+    fi
+fi
+
+rm -f "$TEMP_PERM_CHECK"
+
+# Re-enable exit on error
+set -e
+
+# Display task permission check results
+echo ""
+echo -e "${BLUE}Task Execution Permissions Status:${NC}"
+
+if [ "$HAS_EXECUTE_TASK" = "1" ]; then
+    echo -e "${GREEN}  ✓ EXECUTE TASK: Available on SYSADMIN${NC}"
+else
+    echo -e "${RED}  ✗ EXECUTE TASK: NOT Available on SYSADMIN${NC}"
+fi
+
+if [ "$HAS_EXECUTE_MANAGED_TASK" = "1" ]; then
+    echo -e "${GREEN}  ✓ EXECUTE MANAGED TASK: Available on SYSADMIN${NC}"
+else
+    echo -e "${RED}  ✗ EXECUTE MANAGED TASK: NOT Available on SYSADMIN${NC}"
+fi
+
+echo ""
+
+# Check if both task permissions are available
+MISSING_TASK_PERMS=()
+if [ "$HAS_EXECUTE_TASK" = "0" ]; then
+    MISSING_TASK_PERMS+=("EXECUTE TASK")
+fi
+if [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
+    MISSING_TASK_PERMS+=("EXECUTE MANAGED TASK")
+fi
+
+if [ ${#MISSING_TASK_PERMS[@]} -gt 0 ]; then
+    echo -e "${RED}✗ ERROR: Missing required task execution permissions${NC}"
+    echo ""
+    echo -e "${YELLOW}This deployment requires SYSADMIN to have task execution privileges to:${NC}"
+    echo "  - Create and manage automated transformation tasks"
+    echo "  - Schedule periodic data processing"
+    echo ""
+    echo -e "${YELLOW}Please have your Snowflake ACCOUNTADMIN run the following commands:${NC}"
+    echo ""
+    echo -e "${YELLOW}  USE ROLE ACCOUNTADMIN;${NC}"
+    if [ "$HAS_EXECUTE_TASK" = "0" ]; then
+        echo -e "${YELLOW}  GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+    fi
+    if [ "$HAS_EXECUTE_MANAGED_TASK" = "0" ]; then
+        echo -e "${YELLOW}  GRANT EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN WITH GRANT OPTION;${NC}"
+    fi
+    echo ""
+    echo -e "${YELLOW}Note: These privileges are required at the account level and can only be granted by ACCOUNTADMIN.${NC}"
+    echo ""
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All required task execution permissions available${NC}"
+echo ""
+
 # Get configuration values - prompt only if not accepting defaults
 if [ "$ACCEPT_DEFAULTS" = "true" ]; then
     # Use all default values without prompting
